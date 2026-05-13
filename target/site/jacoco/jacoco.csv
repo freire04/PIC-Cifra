@@ -1,0 +1,10 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+PIC - Cifra de Ficheiros,pt.tecnico.pic.domain,Role,0,21,0,0,0,4,0,1,0,1
+PIC - Cifra de Ficheiros,pt.tecnico.pic.domain,ActionType,93,0,0,0,16,0,1,0,1,0
+PIC - Cifra de Ficheiros,pt.tecnico.pic.domain,Log,51,0,0,0,18,0,9,0,9,0
+PIC - Cifra de Ficheiros,pt.tecnico.pic.domain,Account,0,70,0,0,0,27,0,13,0,13
+PIC - Cifra de Ficheiros,pt.tecnico.pic.domain,Session,0,53,0,2,0,19,0,10,0,9
+PIC - Cifra de Ficheiros,pt.tecnico.pic.domain,UserContext,21,0,0,0,8,0,4,0,4,0
+PIC - Cifra de Ficheiros,pt.tecnico.pic.domain,OperationResult,21,0,0,0,4,0,1,0,1,0
+PIC - Cifra de Ficheiros,pt.tecnico.pic.application,AppController,0,3,0,0,0,2,0,1,0,1
+PIC - Cifra de Ficheiros,pt.tecnico.pic.presentation,MainApp,72,0,0,0,17,0,3,0,3,0

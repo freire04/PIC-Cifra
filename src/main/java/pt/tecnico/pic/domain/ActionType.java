@@ -1,0 +1,19 @@
+package pt.tecnico.pic.domain;
+
+public enum ActionType {
+    LOGIN,
+    LOGOUT,
+    ENCRYPT_FILE,
+    DECRYPT_FILE,
+    VIEW_LOGS,
+    CREATE_ACCOUNT,
+    UPDATE_ACCOUNT,
+    DISABLE_ACCOUNT,
+    ENABLE_ACCOUNT,
+    UPDATE_ROLES,
+    CHANGE_PASSWORD,
+    RESET_PASSWORD,
+    SELECT_ROLE,
+    TOKEN_UNLOCK,
+    TOKEN_LOCK
+}
