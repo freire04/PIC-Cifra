@@ -13,18 +13,18 @@ public final class Log {
     private final OperationResult result;
     private final String message;
 
-public Log( int logId, LocalDateTime timestamp, Integer accountId,String username, Role actorRole, 
-        ActionType actionType, String fileName, OperationResult result, String message) {
-    this.logId = logId;
-    this.timestamp = timestamp;
-    this.accountId = accountId;
-    this.username = username;
-    this.role = actorRole;
-    this.action = actionType;
-    this.fileName = fileName;
-    this.result = result;
-    this.message = message;
-}
+    public Log(int logId, LocalDateTime timestamp, Integer accountId, String username, Role actorRole,
+            ActionType actionType, String fileName, OperationResult result, String message) {
+        this.logId = logId;
+        this.timestamp = timestamp;
+        this.accountId = accountId;
+        this.username = username;
+        this.role = actorRole;
+        this.action = actionType;
+        this.fileName = fileName;
+        this.result = result;
+        this.message = message;
+    }
 
     public int getLogId() {
         return logId;
