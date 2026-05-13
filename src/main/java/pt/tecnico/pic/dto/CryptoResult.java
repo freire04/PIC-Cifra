@@ -10,7 +10,7 @@ public class CryptoResult {
     private final String inputFilePath;
     private final ActionType actionType;
 
-    public CryptoResult(OperationResult result, String message, String outputFilePath, String inputFilePath, ActionType actionType) {
+    public CryptoResult(OperationResult result, String message, String inputFilePath, String outputFilePath, ActionType actionType) {
         this.result = result;
         this.message = message;
         this.outputFilePath = outputFilePath;
