@@ -33,6 +33,10 @@ public class LogFilter {
         return role;
     }
 
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
     public void setUsername(String username) {
         this.username = username;
     }
