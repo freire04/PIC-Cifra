@@ -71,10 +71,14 @@ public class Account {
         this.mustChangePassword = false;
     }
 
+    /**
+     * Creates a defensive mutable copy of roles after validating that the set
+     * and all of its elements are non-null.
+     */
     private static Set<Role> copyValidatedRoles(Set<Role> roles) {
         Objects.requireNonNull(roles);
         if (roles.contains(null)) {
-            throw new NullPointerException();
+            throw new NullPointerException("Role set cannot contain null elements");
         }
         return new HashSet<>(roles);
     }
