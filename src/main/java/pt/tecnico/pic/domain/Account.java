@@ -77,8 +77,10 @@ public class Account {
      */
     private static Set<Role> copyValidatedRoles(Set<Role> roles) {
         Objects.requireNonNull(roles);
-        if (roles.contains(null)) {
-            throw new NullPointerException("Role set cannot contain null elements");
+        for (Role role : roles) {
+            if (role == null) {
+                throw new NullPointerException("Role set cannot contain null elements");
+            }
         }
         return new HashSet<>(roles);
     }
