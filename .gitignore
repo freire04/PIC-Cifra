@@ -1,0 +1,7 @@
+# Maven / Java build outputs
+target/
+build/
+out/
+
+# Coverage and test reports
+coverage/
