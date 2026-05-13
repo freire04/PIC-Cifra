@@ -2,6 +2,7 @@ package pt.tecnico.pic.domain;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 public class Account {
@@ -16,8 +17,7 @@ public class Account {
         this.id = id;
         this.username = username;
         this.passwordHash = passwordHash;
-        Set.copyOf(roles);
-        this.roles = new HashSet<>(roles);
+        this.roles = copyValidatedRoles(roles);
         this.active = active;
         this.mustChangePassword = true;
     }
@@ -47,8 +47,7 @@ public class Account {
     }
 
     public void setRoles(Set<Role> roles) {
-        Set.copyOf(roles);
-        this.roles = new HashSet<>(roles);
+        this.roles = copyValidatedRoles(roles);
     }
 
     public void addRole(Role role) {
@@ -72,4 +71,11 @@ public class Account {
         this.mustChangePassword = false;
     }
 
+    private static Set<Role> copyValidatedRoles(Set<Role> roles) {
+        Objects.requireNonNull(roles);
+        if (roles.contains(null)) {
+            throw new NullPointerException();
+        }
+        return new HashSet<>(roles);
+    }
 }
