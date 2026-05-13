@@ -1,5 +1,8 @@
 package pt.tecnico.pic.domain;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 public class Account {
@@ -14,7 +17,7 @@ public class Account {
         this.id = id;
         this.username = username;
         this.passwordHash = passwordHash;
-        this.roles = roles;
+        this.roles = copyValidatedRoles(roles);
         this.active = active;
         this.mustChangePassword = true;
     }
@@ -32,7 +35,7 @@ public class Account {
     }
 
     public Set<Role> getRoles() {
-        return roles;
+        return Collections.unmodifiableSet(roles);
     }
 
     public boolean isActive() {
@@ -44,7 +47,7 @@ public class Account {
     }
 
     public void setRoles(Set<Role> roles) {
-        this.roles = roles;
+        this.roles = copyValidatedRoles(roles);
     }
 
     public void addRole(Role role) {
@@ -68,4 +71,17 @@ public class Account {
         this.mustChangePassword = false;
     }
 
+    /**
+     * Creates a defensive mutable copy of roles after validating that the set
+     * and all of its elements are non-null.
+     */
+    private static Set<Role> copyValidatedRoles(Set<Role> roles) {
+        Objects.requireNonNull(roles);
+        for (Role role : roles) {
+            if (role == null) {
+                throw new NullPointerException("Role set cannot contain null elements");
+            }
+        }
+        return new HashSet<>(roles);
+    }
 }

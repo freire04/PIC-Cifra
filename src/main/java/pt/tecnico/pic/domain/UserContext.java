@@ -3,12 +3,12 @@ package pt.tecnico.pic.domain;
 public class UserContext {
     private final int accountId;
     private final String username;
-    private final Role role;
+    private final Role selectedRole;
 
-    public UserContext(int accountId, String username, Role role) {
+    public UserContext(int accountId, String username, Role selectedRole) {
         this.accountId = accountId;
         this.username = username;
-        this.role = role;
+        this.selectedRole = selectedRole;
     }
 
     public int getAccountId() {
@@ -19,8 +19,8 @@ public class UserContext {
         return username;
     }
 
-    public Role getRole() {
-        return role;
+    public Role getSelectedRole() {
+        return selectedRole;
     }
     
 }
