@@ -27,7 +27,7 @@ public class LogDto {
 
     public int getLogId() {
         return logId;
-    }  
+    }
 
     public String getUsername() {
         return username;
