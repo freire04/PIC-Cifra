@@ -16,7 +16,7 @@ public class Account {
         this.id = id;
         this.username = username;
         this.passwordHash = passwordHash;
-        this.roles = new HashSet<>(roles);
+        this.roles = new HashSet<>(Set.copyOf(roles));
         this.active = active;
         this.mustChangePassword = true;
     }
@@ -46,7 +46,7 @@ public class Account {
     }
 
     public void setRoles(Set<Role> roles) {
-        this.roles = new HashSet<>(roles);
+        this.roles = new HashSet<>(Set.copyOf(roles));
     }
 
     public void addRole(Role role) {

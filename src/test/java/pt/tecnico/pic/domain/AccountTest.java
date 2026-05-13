@@ -5,6 +5,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
@@ -53,5 +54,24 @@ class AccountTest {
 
         assertTrue(account.getRoles().contains(Role.USER));
         assertTrue(account.getRoles().contains(Role.ADMIN));
+    }
+
+    @Test
+    void constructorShouldRejectNullRoleEntries() {
+        Set<Role> roles = new HashSet<>();
+        roles.add(Role.USER);
+        roles.add(null);
+
+        assertThrows(NullPointerException.class, () -> new Account(1, "alice", "hash123", roles, true));
+    }
+
+    @Test
+    void setRolesShouldRejectNullRoleEntries() {
+        Account account = new Account(1, "alice", "hash123", new HashSet<>(Set.of(Role.USER)), true);
+        Set<Role> roles = new HashSet<>();
+        roles.add(Role.ADMIN);
+        roles.add(null);
+
+        assertThrows(NullPointerException.class, () -> account.setRoles(roles));
     }
 }
