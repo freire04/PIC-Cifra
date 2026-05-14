@@ -7,7 +7,7 @@ public class PasswordResult {
     private final String temporaryPassword;
     private final String message;
 
-    public PasswordResult(OperationResult result, String temporaryPassword, String message) {
+    public PasswordResult(OperationResult result, String message, String temporaryPassword) {
         this.result = result;
         this.temporaryPassword = temporaryPassword;
         this.message = message;

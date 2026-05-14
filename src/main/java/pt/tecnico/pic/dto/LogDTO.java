@@ -50,6 +50,10 @@ public class LogDTO {
         return actorRole;
     }
 
+    public Role getRole() {
+        return actorRole;
+    }
+
     public ActionType getActionType() {
         return actionType;
     }

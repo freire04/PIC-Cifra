@@ -4,9 +4,11 @@ import java.time.LocalDateTime;
 
 import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.OperationResult;
+import pt.tecnico.pic.domain.Role;
 
 public class LogFilter {
     private String username;
+    private Role role;
     private ActionType actionType;
     private OperationResult result;
     private LocalDateTime startDate;
@@ -14,8 +16,9 @@ public class LogFilter {
 
     public LogFilter() {}
 
-    public LogFilter(String username, ActionType actionType, OperationResult result, LocalDateTime startDate, LocalDateTime endDate) {
+    public LogFilter(String username, Role role, ActionType actionType, OperationResult result, LocalDateTime startDate, LocalDateTime endDate) {
         this.username = username;
+        this.role = role;
         this.actionType = actionType;
         this.result = result;
         this.startDate = startDate;
@@ -24,6 +27,14 @@ public class LogFilter {
 
     public String getUsername() {
         return username;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
     }
 
     public void setUsername(String username) {
