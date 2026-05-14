@@ -42,8 +42,17 @@ class LogDTOTest {
 
     @Test
     void shouldBuildFromLogWithStoredActorRole() {
-        Log domainLog = new Log(7, 42, "alice", Role.AUDITOR, ActionType.VIEW_LOGS,
-                "C:\\Users\\alice\\documents\\audit.log", LocalDateTime.now(), OperationResult.SUCCESS, "ok");
+        Log domainLog = new Log(
+                7,
+                42,
+                LocalDateTime.now(),
+                "alice",
+                Role.AUDITOR,
+                ActionType.VIEW_LOGS,
+                "audit.log",
+                OperationResult.SUCCESS,
+                "ok"
+        );
 
         LogDTO log = LogDTO.fromLog(domainLog);
 
