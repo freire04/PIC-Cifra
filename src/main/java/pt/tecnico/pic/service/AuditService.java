@@ -16,15 +16,23 @@ import pt.tecnico.pic.dto.LogFilter;
 import pt.tecnico.pic.util.PathSanitizer;
 
 public class AuditService {
+
     private static final Pattern SENSITIVE_VALUE_PATTERN =
             Pattern.compile("(?i)\\b(password|pin|senha)\\b\\s*[:=]\\s*\\S+");
-    private static final Pattern PATH_TOKEN_PATTERN = Pattern.compile("\\S*[\\\\/]\\S+");
+
+    private static final Pattern PATH_TOKEN_PATTERN =
+            Pattern.compile("\\S*[\\\\/]\\S+");
 
     private final List<Log> logs = new ArrayList<>();
     private int nextLogId = 1;
 
-    public synchronized void log(Integer accountId, String username, Role actorRole, ActionType action,
-                                 String filePath, OperationResult result, String message) {
+    public synchronized void log(Integer accountId,
+                                 String username,
+                                 Role actorRole,
+                                 ActionType action,
+                                 String filePath,
+                                 OperationResult result,
+                                 String message) {
         Objects.requireNonNull(action, "action must not be null");
         Objects.requireNonNull(result, "result must not be null");
 
@@ -67,18 +75,23 @@ public class AuditService {
         if (filter.getUsername() != null && !filter.getUsername().equals(log.getUsername())) {
             return false;
         }
-        if (filter.getRole() != null && filter.getRole() != log.getActorRole()) {
+
+        if (filter.getActorRole() != null && filter.getActorRole() != log.getActorRole()) {
             return false;
         }
+
         if (filter.getActionType() != null && filter.getActionType() != log.getAction()) {
             return false;
         }
+
         if (filter.getResult() != null && filter.getResult() != log.getResult()) {
             return false;
         }
+
         if (filter.getStartDate() != null && log.getTimestamp().isBefore(filter.getStartDate())) {
             return false;
         }
+
         return filter.getEndDate() == null || !log.getTimestamp().isAfter(filter.getEndDate());
     }
 
@@ -87,13 +100,19 @@ public class AuditService {
             return message;
         }
 
-        String withoutSensitiveValues = SENSITIVE_VALUE_PATTERN.matcher(message).replaceAll("$1=[REDACTED]");
+        String withoutSensitiveValues = SENSITIVE_VALUE_PATTERN
+                .matcher(message)
+                .replaceAll("$1=[REDACTED]");
+
         Matcher matcher = PATH_TOKEN_PATTERN.matcher(withoutSensitiveValues);
         StringBuffer safeMessage = new StringBuffer();
 
         while (matcher.find()) {
             String replacement = PathSanitizer.toFileName(matcher.group());
-            matcher.appendReplacement(safeMessage, Matcher.quoteReplacement(replacement == null ? "" : replacement));
+            matcher.appendReplacement(
+                    safeMessage,
+                    Matcher.quoteReplacement(replacement == null ? "" : replacement)
+            );
         }
 
         matcher.appendTail(safeMessage);

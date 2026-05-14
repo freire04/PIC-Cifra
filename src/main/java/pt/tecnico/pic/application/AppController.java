@@ -11,6 +11,7 @@ import pt.tecnico.pic.service.FileCryptoService;
  * Central application facade.
  */
 public class AppController {
+
     private final AuditService auditService;
     private final FileCryptoService fileCryptoService;
 
@@ -19,8 +20,15 @@ public class AppController {
     }
 
     public AppController(AuditService auditService) {
+        this(auditService, new FileCryptoService(auditService));
+    }
+
+    public AppController(AuditService auditService, FileCryptoService fileCryptoService) {
         this.auditService = Objects.requireNonNull(auditService, "auditService must not be null");
-        this.fileCryptoService = new FileCryptoService(this.auditService);
+        this.fileCryptoService = Objects.requireNonNull(fileCryptoService, "fileCryptoService must not be null");
+        if (this.fileCryptoService.getAuditService() != this.auditService) {
+            throw new IllegalArgumentException("fileCryptoService must use the provided auditService");
+        }
     }
 
     public void recordLogin(Integer accountId, String username, OperationResult result, String message) {
