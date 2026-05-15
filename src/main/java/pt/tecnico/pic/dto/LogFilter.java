@@ -8,7 +8,7 @@ import pt.tecnico.pic.domain.Role;
 
 public class LogFilter {
     private String username;
-    private Role role;
+    private Role actorRole;
     private ActionType actionType;
     private OperationResult result;
     private LocalDateTime startDate;
@@ -16,9 +16,10 @@ public class LogFilter {
 
     public LogFilter() {}
 
-    public LogFilter(String username, Role role, ActionType actionType, OperationResult result, LocalDateTime startDate, LocalDateTime endDate) {
+    public LogFilter(String username, Role actorRole, ActionType actionType, OperationResult result,
+                     LocalDateTime startDate, LocalDateTime endDate) {
         this.username = username;
-        this.role = role;
+        this.actorRole = actorRole;
         this.actionType = actionType;
         this.result = result;
         this.startDate = startDate;
@@ -29,12 +30,12 @@ public class LogFilter {
         return username;
     }
 
-    public Role getRole() {
-        return role;
+    public Role getActorRole() {
+        return actorRole;
     }
 
-    public void setRole(Role role) {
-        this.role = role;
+    public void setActorRole(Role actorRole) {
+        this.actorRole = actorRole;
     }
 
     public void setUsername(String username) {

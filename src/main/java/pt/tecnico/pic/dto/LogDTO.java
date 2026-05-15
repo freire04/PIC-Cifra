@@ -6,6 +6,7 @@ import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.Log;
 import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.domain.Role;
+import pt.tecnico.pic.util.PathSanitizer;
 
 public class LogDTO {
     private final int logId;
@@ -24,14 +25,14 @@ public class LogDTO {
         this.username = username;
         this.actorRole = actorRole;
         this.actionType = actionType;
-        this.fileName = sanitizeFileName(fileNameOrPath);
+        this.fileName = PathSanitizer.toFileName(fileNameOrPath);
         this.result = result;
         this.message = message;
     }
 
     public static LogDTO fromLog(Log log) {
         return new LogDTO(log.getLogId(), log.getTimestamp(), log.getUsername(), log.getActorRole(), log.getAction(),
-                log.getFilePath(), log.getResult(), log.getMessage());
+                log.getFileName(), log.getResult(), log.getMessage());
     }
 
     public int getLogId() {
@@ -50,10 +51,6 @@ public class LogDTO {
         return actorRole;
     }
 
-    public Role getRole() {
-        return actorRole;
-    }
-
     public ActionType getActionType() {
         return actionType;
     }
@@ -68,15 +65,5 @@ public class LogDTO {
 
     public String getMessage() {
         return message;
-    }
-
-    private static String sanitizeFileName(String fileNameOrPath) {
-        if (fileNameOrPath == null || fileNameOrPath.isBlank()) {
-            return null;
-        }
-
-        String normalizedPath = fileNameOrPath.replace('\\', '/');
-        int lastSeparator = normalizedPath.lastIndexOf('/');
-        return lastSeparator >= 0 ? normalizedPath.substring(lastSeparator + 1) : normalizedPath;
     }
 }

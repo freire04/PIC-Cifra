@@ -7,7 +7,6 @@ public enum ActionType {
     DECRYPT_FILE,
     VIEW_LOGS,
     CREATE_ACCOUNT,
-    UPDATE_ACCOUNT,
     DISABLE_ACCOUNT,
     ENABLE_ACCOUNT,
     UPDATE_ROLES,

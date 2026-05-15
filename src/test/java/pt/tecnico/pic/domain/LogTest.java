@@ -12,8 +12,8 @@ public class LogTest {
 
         Log log = new Log(
                 102,
-                timestamp,
                 1,
+                timestamp,
                 "jdoe",
                 Role.ADMIN,
                 ActionType.ENCRYPT_FILE,
@@ -26,7 +26,7 @@ public class LogTest {
         assertEquals(timestamp, log.getTimestamp());
         assertEquals(1, log.getAccountId());
         assertEquals("jdoe", log.getUsername());
-        assertEquals(Role.ADMIN, log.getRole());
+        assertEquals(Role.ADMIN, log.getActorRole());
         assertEquals(ActionType.ENCRYPT_FILE, log.getAction());
         assertEquals("ficheiro.pdf", log.getFileName());
         assertEquals(OperationResult.SUCCESS, log.getResult());
