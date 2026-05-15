@@ -10,6 +10,11 @@ import pt.tecnico.pic.service.FileCryptoService;
 /**
  * Central application facade.
  */
+
+// TODO (S1-10):
+// AppController should later receive AccountService and expose the
+// full application flows (login, role selection, account management, etc.).
+
 public class AppController {
 
     private final AuditService auditService;

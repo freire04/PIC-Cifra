@@ -4,6 +4,8 @@ import javafx.application.Application;
 import javafx.stage.Stage;
 import pt.tecnico.pic.application.AppController;
 import pt.tecnico.pic.service.AccountService;
+import pt.tecnico.pic.service.AuditService;
+import pt.tecnico.pic.service.FileCryptoService;
 import pt.tecnico.pic.service.PasswordService;
 import pt.tecnico.pic.store.AccountStore;
 
@@ -13,49 +15,24 @@ public class MainApp extends Application {
     private AppController appController;
     private SceneManager sceneManager;
 
-    /*@Override
-    public void start(Stage stage) {
-        appController = new AppController();
-        sceneManager = new SceneManager(stage, appController);
-
-        Label placeholderLabel = new Label("Cifra de Ficheiros - Placeholder");
-        placeholderLabel.getStyleClass().add("placeholder-label");
-
-        VBox root = new VBox(placeholderLabel);
-        root.setAlignment(Pos.CENTER);
-        root.setPadding(new Insets(24));
-        root.getStyleClass().add("app-root");
-
-        Scene scene = new Scene(root, 640, 360);
-        String stylesheet = getClass().getResource("/css/application.css").toExternalForm();
-        scene.getStylesheets().add(stylesheet);
-
-        stage.setTitle(WINDOW_TITLE);
-        stage.setScene(scene);
-        stage.show();
-    }*/
-
     @Override
     public void start(Stage stage) {
         AccountStore accountStore = new AccountStore();
         PasswordService passwordService = new PasswordService();
         AccountService accountService = new AccountService(accountStore, passwordService);
 
-        /*AuditService auditService = new NoOpAuditService();
-        JavaCryptoService javaCryptoService = new JavaCryptoService();
-        FileCryptoService fileCryptoService = new FileCryptoService(javaCryptoService);
+        AuditService auditService = new AuditService();
 
-        appController = new AppController(
-            accountService,
-            fileCryptoService,
-            auditService
-        );
-        */
+        // JavaCryptoService javaCryptoService = new JavaCryptoService();
+        // JavaCryptoService é para ser criado nesta classe assim que ele for definido.
+        // Falta injetar o javaCryptoService no fileCryptoService, assumo que isso seja o S01-09.
+        FileCryptoService fileCryptoService = new FileCryptoService(auditService);
         
-        appController = new AppController();
-
+        // Falta injetar o accountService no appController, assumo que isso seja o S01-10 (ou parecido).
+        appController = new AppController(auditService, fileCryptoService);
         sceneManager = new SceneManager(stage, appController);
-        stage.setTitle("PIC - Cifra de Ficheiros");
+
+        stage.setTitle(WINDOW_TITLE);
         sceneManager.showLogin();
         stage.show();
     }

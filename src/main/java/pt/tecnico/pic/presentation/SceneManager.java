@@ -1,5 +1,7 @@
 package pt.tecnico.pic.presentation;
 
+import java.util.Objects;
+
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -19,16 +21,17 @@ import pt.tecnico.pic.application.AppController;
  *
  * These screens exist only to validate JavaFX startup and navigation.
  * Real FXML views and ViewControllers will replace this UI in later issues.
- * 
- * Again, this is all a placeholder. Do not implement any real logic here.
  */
+
+// TODO: call appController.logout() when session handling is implemented.
+
 public class SceneManager {
     private final Stage primaryStage;
     private final AppController appController;
 
     public SceneManager(Stage primaryStage, AppController appController) {
-        this.primaryStage = primaryStage;
-        this.appController = appController;
+        this.primaryStage = Objects.requireNonNull(primaryStage, "primaryStage must not be null");
+        this.appController = Objects.requireNonNull(appController, "appController must not be null");
     }
 
     public void showLogin() {        
@@ -102,10 +105,10 @@ public class SceneManager {
             return null;
         });
 
-        pinDialog.showAndWait().ifPresent(pin -> showMainMenu());
+        pinDialog.showAndWait().ifPresent(pin -> showDashboard());
     }
 
-    public void showMainMenu() {
+    public void showDashboard() {
         Label title = new Label("Main Menu");
 
         Button encryptButton = new Button("Encrypt File");
@@ -200,7 +203,7 @@ public class SceneManager {
             if (required) {
                 showRoleSelection();
             } else {
-                showMainMenu();
+                showDashboard();
             }
         });
 
@@ -209,7 +212,7 @@ public class SceneManager {
             if (required) {
                 logout();
             } else {
-                showMainMenu();
+                showDashboard();
             }
         });
 
@@ -228,7 +231,6 @@ public class SceneManager {
     private void setScene(Scene scene) {
         primaryStage.setScene(scene);
     }
-
 
     private void showFileCryptoPlaceholder(String titleText,
                                         String dropText,
@@ -267,7 +269,7 @@ public class SceneManager {
         });
 
         Button backButton = new Button("Back");
-        backButton.setOnAction(event -> showMainMenu());
+        backButton.setOnAction(event -> showDashboard());
 
         HBox buttons = new HBox(
                 12,
