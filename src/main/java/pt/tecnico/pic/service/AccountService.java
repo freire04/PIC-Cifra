@@ -19,7 +19,7 @@ public class AccountService {
         this.passwordService = passwordService;
     }
     
-    public Account authenthicate(String username, char[] password) {
+    public Account authenticate(String username, char[] password) {
         return null;
     }
 
