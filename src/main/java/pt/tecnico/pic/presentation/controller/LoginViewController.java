@@ -12,12 +12,12 @@ public class LoginViewController {
         this.sceneManager = sceneManager;
     }
 
-    private void initialize() {}
+    public void initialize() {}
 
-    private void onLoginClicked() {}
+    public void onLoginClicked() {}
 
-    private void showError(String message) {}
+    public void showError(String message) {}
 
-    private void clearFields() {}
+    public void clearFields() {}
 
 }
