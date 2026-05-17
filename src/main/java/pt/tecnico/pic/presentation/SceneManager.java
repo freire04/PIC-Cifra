@@ -17,6 +17,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import pt.tecnico.pic.application.AppController;
+import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.presentation.controller.AdminUserViewController;
 import pt.tecnico.pic.presentation.controller.AuditLogViewController;
 import pt.tecnico.pic.presentation.controller.ChangePasswordViewController;
@@ -42,7 +43,7 @@ public class SceneManager {
     private static final int WINDOW_WIDTH = 720;
     private static final int WINDOW_HEIGHT = 520;
 
-    private String selectedRole; //TEMPORARY PLACEHOLDER
+    private Role selectedRole; //TEMPORARY PLACEHOLDER
 
     public SceneManager(Stage primaryStage, AppController appController) {
         this.primaryStage = Objects.requireNonNull(primaryStage, "primaryStage must not be null");
@@ -82,19 +83,19 @@ public class SceneManager {
 
         Button userButton = new Button("USER");
         userButton.setOnAction(event -> {
-            selectedRole = "USER";
+            selectedRole = Role.USER;
             requestTokenPin();
         });
 
         Button auditorButton = new Button("AUDITOR");
         auditorButton.setOnAction(event -> {
-            selectedRole = "AUDITOR";
+            selectedRole = Role.AUDITOR;
             showDashboard();
         });
 
         Button adminButton = new Button("ADMIN");
         adminButton.setOnAction(event -> {
-            selectedRole = "ADMIN";
+            selectedRole = Role.ADMIN;
             showDashboard();
         });
 
@@ -154,7 +155,7 @@ public class SceneManager {
         VBox actions = new VBox(12);
         actions.setAlignment(Pos.CENTER);
 
-        if ("USER".equals(selectedRole)) {
+        if (selectedRole == Role.USER) {
             Button encryptButton = new Button("Encrypt File");
             encryptButton.setOnAction(event -> showEncryptionView());
 
@@ -164,14 +165,14 @@ public class SceneManager {
             actions.getChildren().addAll(encryptButton, decryptButton);
         }
 
-        if ("ADMIN".equals(selectedRole)) {
+        if (selectedRole == Role.ADMIN) {
             Button adminUsersButton = new Button("Manage Users");
             adminUsersButton.setOnAction(event -> showAdminUsers());
 
             actions.getChildren().add(adminUsersButton);
         }
 
-        if ("AUDITOR".equals(selectedRole)) {
+        if (selectedRole == Role.AUDITOR) {
             Button auditLogsButton = new Button("View Audit Logs");
             auditLogsButton.setOnAction(event -> showAuditLogs());
 
