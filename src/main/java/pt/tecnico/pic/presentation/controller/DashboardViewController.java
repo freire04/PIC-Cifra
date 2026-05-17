@@ -3,11 +3,11 @@ package pt.tecnico.pic.presentation.controller;
 import pt.tecnico.pic.application.AppController;
 import pt.tecnico.pic.presentation.SceneManager;
 
-public class MainMenuViewController {
+public class DashboardViewController {
     private final AppController appController;
     private final SceneManager sceneManager;
 
-    public MainMenuViewController(AppController appController, SceneManager sceneManager) {
+    public DashboardViewController(AppController appController, SceneManager sceneManager) {
         this.appController = appController;
         this.sceneManager = sceneManager;
     }
