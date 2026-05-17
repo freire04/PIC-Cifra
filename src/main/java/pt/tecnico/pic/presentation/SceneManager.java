@@ -75,7 +75,7 @@ public class SceneManager {
         temporaryPasswordButton.setOnAction(event -> {
             // TODO: replace this placeholder flow with real authentication / temporary-password
             // validation via appController before forcing password change.
-            showChangePassword(true);
+            showChangePassword();
         });
 
         VBox root = new VBox(12, title, usernameField, passwordField, loginButton, temporaryPasswordButton);
@@ -119,7 +119,7 @@ public class SceneManager {
         setScene(root);
     }
 
-    private void requestTokenPin() {
+    public void requestTokenPin() {
         Dialog<String> pinDialog = new Dialog<>();
 
         pinDialog.setTitle("Token PIN");
@@ -262,7 +262,7 @@ public class SceneManager {
         setScene(root);
     }
 
-    public void showChangePassword(boolean required) {
+    public void showChangePassword() {
         ChangePasswordViewController controller = new ChangePasswordViewController(appController, this);
 
         Label title = new Label("Change Password");
@@ -280,22 +280,10 @@ public class SceneManager {
         confirmPasswordField.setMaxWidth(240);
 
         Button confirmButton = new Button("Change Password");
-        confirmButton.setOnAction(event -> {
-            if (required) {
-                showRoleSelection();
-            } else {
-                showDashboard();
-            }
-        });
+        confirmButton.setOnAction(event -> showRoleSelection());
 
-        Button cancelButton = new Button(required ? "Logout" : "Back");
-        cancelButton.setOnAction(event -> {
-            if (required) {
-                logout();
-            } else {
-                showDashboard();
-            }
-        });
+        Button cancelButton = new Button("Back");
+        cancelButton.setOnAction(event -> logout());
 
         VBox root = new VBox(12, title, oldPasswordField, newPasswordField,
                 confirmPasswordField, confirmButton, cancelButton);

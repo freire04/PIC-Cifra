@@ -26,6 +26,7 @@ public class MainApp extends Application {
         // JavaCryptoService javaCryptoService = new JavaCryptoService();
         // JavaCryptoService é para ser criado nesta classe assim que ele for definido.
         // Falta injetar o javaCryptoService no fileCryptoService, assumo que isso seja o S01-09.
+        // Se estiver errado, apaguem estes comentários acima, por favor - Miguel.
         FileCryptoService fileCryptoService = new FileCryptoService(auditService);
         
         // Falta injetar o accountService no appController, assumo que isso seja o S01-10 (ou parecido).
