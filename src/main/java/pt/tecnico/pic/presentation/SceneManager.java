@@ -65,10 +65,18 @@ public class SceneManager {
         passwordField.setMaxWidth(240);
 
         Button loginButton = new Button("Login");
-        loginButton.setOnAction(event -> showRoleSelection());
+        loginButton.setOnAction(event -> {
+            // TODO: replace this placeholder flow with real authentication via appController
+            // before navigating to role selection; username/password fields are currently ignored.
+            showRoleSelection();
+        });
 
         Button temporaryPasswordButton = new Button("Login with temporary password");
-        temporaryPasswordButton.setOnAction(event -> showChangePassword(true));
+        temporaryPasswordButton.setOnAction(event -> {
+            // TODO: replace this placeholder flow with real authentication / temporary-password
+            // validation via appController before forcing password change.
+            showChangePassword(true);
+        });
 
         VBox root = new VBox(12, title, usernameField, passwordField, loginButton, temporaryPasswordButton);
         root.setAlignment(Pos.CENTER);
