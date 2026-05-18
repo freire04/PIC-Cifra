@@ -14,6 +14,7 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.Provider;
 import java.security.Security;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -43,6 +44,7 @@ public class PKCS11Service implements CryptoService {
     private static final int GCM_TAG_BITS = 128;
     private static final int GCM_IV_BYTES = 12;
     private static final int MAX_IV_BYTES = 32;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final Path configPath;
     private final String keyAlias;
@@ -184,7 +186,7 @@ public class PKCS11Service implements CryptoService {
         try {
             plaintext = Files.readAllBytes(input);
             byte[] iv = new byte[GCM_IV_BYTES];
-            java.security.SecureRandom.getInstanceStrong().nextBytes(iv);
+            SECURE_RANDOM.nextBytes(iv);
 
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", provider);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, new GCMParameterSpec(GCM_TAG_BITS, iv));

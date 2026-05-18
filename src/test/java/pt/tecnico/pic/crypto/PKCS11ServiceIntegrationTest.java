@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -36,7 +37,7 @@ class PKCS11ServiceIntegrationTest {
         Path input = tempDir.resolve("original.txt");
         Path encrypted = tempDir.resolve("original.pic");
         Path decrypted = tempDir.resolve("decrypted.txt");
-        byte[] originalBytes = "ficheiro de teste PKCS11".getBytes();
+        byte[] originalBytes = "ficheiro de teste PKCS11".getBytes(StandardCharsets.UTF_8);
         Files.write(input, originalBytes);
 
         try {
