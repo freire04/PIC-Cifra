@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.nio.file.Files;
@@ -18,6 +19,7 @@ import pt.tecnico.pic.domain.OperationResult;
 class PKCS11ServiceIntegrationTest {
 
     private static final String TEST_PIN_PROPERTY = "pic.pkcs11.test.pin";
+    private static final String TEST_WRONG_PIN_PROPERTY = "pic.pkcs11.test.wrongPin";
 
     @TempDir
     Path tempDir;
@@ -58,5 +60,26 @@ class PKCS11ServiceIntegrationTest {
         }
 
         assertFalse(service.isSessionOpen());
+    }
+
+    @Test
+    void openSessionShouldFailWithWrongSoftHsmPin() {
+        String pin = System.getProperty(TEST_PIN_PROPERTY);
+        assumeTrue(pin != null && !pin.isBlank(),
+                "Set -D" + TEST_PIN_PROPERTY + "=<TOKEN_PIN> to run the PKCS#11 integration test.");
+
+        String wrongPin = System.getProperty(TEST_WRONG_PIN_PROPERTY, "wrong-pin-" + pin);
+        assumeFalse(wrongPin.equals(pin), "Wrong PIN must be different from the token PIN.");
+
+        char[] wrongPinChars = wrongPin.toCharArray();
+        PKCS11Service service = new PKCS11Service();
+
+        try {
+            assertEquals(OperationResult.FAILED, service.openSession(wrongPinChars));
+            assertFalse(service.isSessionOpen());
+        } finally {
+            Arrays.fill(wrongPinChars, '\0');
+            service.closeSession();
+        }
     }
 }

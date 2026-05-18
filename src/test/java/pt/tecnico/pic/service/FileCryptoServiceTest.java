@@ -2,6 +2,7 @@ package pt.tecnico.pic.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,18 @@ import pt.tecnico.pic.dto.CryptoResult;
 import pt.tecnico.pic.dto.LogDTO;
 
 class FileCryptoServiceTest {
+    @Test
+    void constructorsShouldCreateServicesWithCryptoService() {
+        FileCryptoService defaultService = new FileCryptoService();
+        AuditService auditService = new AuditService();
+        FileCryptoService serviceWithAudit = new FileCryptoService(auditService);
+
+        assertNotNull(defaultService.getAuditService());
+        assertNotNull(defaultService.getCryptoService());
+        assertEquals(auditService, serviceWithAudit.getAuditService());
+        assertNotNull(serviceWithAudit.getCryptoService());
+    }
+
     @Test
     void encryptFileShouldDelegateAndCreateAuditLogWithSanitizedFileName() {
         AuditService auditService = new AuditService();
@@ -37,6 +50,45 @@ class FileCryptoServiceTest {
     }
 
     @Test
+    void encryptFileShouldAllowNullUserContextAndCreateAuditLog() {
+        AuditService auditService = new AuditService();
+        StubCryptoService cryptoService = new StubCryptoService();
+        cryptoService.sessionOpen = true;
+        FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
+
+        CryptoResult result = fileCryptoService.encryptFile("plain.txt", "plain.cif", null);
+
+        LogDTO log = auditService.getLogs().getFirst();
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+        assertEquals(ActionType.ENCRYPT_FILE, log.getActionType());
+        assertEquals(null, log.getUsername());
+        assertEquals(null, log.getActorRole());
+    }
+
+    @Test
+    void decryptFileShouldDelegateAndCreateAuditLogWithSanitizedFileName() {
+        AuditService auditService = new AuditService();
+        StubCryptoService cryptoService = new StubCryptoService();
+        cryptoService.sessionOpen = true;
+        FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
+        UserContext userContext = new UserContext(42, "alice", Role.USER);
+
+        CryptoResult result = fileCryptoService.decryptFile(userContext,
+                "C:\\Users\\alice\\documents\\documento.cif", "C:\\Users\\alice\\documents\\documento.pdf");
+
+        LogDTO log = auditService.getLogs().getFirst();
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+        assertTrue(cryptoService.decryptCalled);
+        assertEquals("C:\\Users\\alice\\documents\\documento.cif", cryptoService.lastInputPath);
+        assertEquals("C:\\Users\\alice\\documents\\documento.pdf", cryptoService.lastOutputPath);
+        assertEquals(ActionType.DECRYPT_FILE, log.getActionType());
+        assertEquals(Role.USER, log.getActorRole());
+        assertEquals("documento.cif", log.getFileName());
+    }
+
+    @Test
     void encryptFileShouldFailWithoutUnlockedToken() {
         AuditService auditService = new AuditService();
         StubCryptoService cryptoService = new StubCryptoService();
@@ -54,6 +106,61 @@ class FileCryptoServiceTest {
     }
 
     @Test
+    void decryptFileShouldFailWithoutUnlockedToken() {
+        AuditService auditService = new AuditService();
+        StubCryptoService cryptoService = new StubCryptoService();
+        FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
+        UserContext userContext = new UserContext(42, "alice", Role.USER);
+
+        CryptoResult result = fileCryptoService.decryptFile(userContext, "plain.cif", "plain.txt");
+
+        LogDTO log = auditService.getLogs().getFirst();
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+        assertFalse(cryptoService.decryptCalled);
+        assertEquals(OperationResult.FAILED, log.getResult());
+        assertEquals(ActionType.DECRYPT_FILE, log.getActionType());
+    }
+
+    @Test
+    void encryptFileShouldLogFailureReturnedByCryptoService() {
+        AuditService auditService = new AuditService();
+        StubCryptoService cryptoService = new StubCryptoService();
+        cryptoService.sessionOpen = true;
+        cryptoService.encryptResult = OperationResult.FAILED;
+        FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
+        UserContext userContext = new UserContext(42, "alice", Role.USER);
+
+        CryptoResult result = fileCryptoService.encryptFile(userContext, "plain.txt", "plain.cif");
+
+        LogDTO log = auditService.getLogs().getFirst();
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+        assertTrue(cryptoService.encryptCalled);
+        assertEquals(OperationResult.FAILED, log.getResult());
+        assertEquals(ActionType.ENCRYPT_FILE, log.getActionType());
+    }
+
+    @Test
+    void decryptFileShouldLogFailureReturnedByCryptoService() {
+        AuditService auditService = new AuditService();
+        StubCryptoService cryptoService = new StubCryptoService();
+        cryptoService.sessionOpen = true;
+        cryptoService.decryptResult = OperationResult.FAILED;
+        FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
+        UserContext userContext = new UserContext(42, "alice", Role.USER);
+
+        CryptoResult result = fileCryptoService.decryptFile(userContext, "plain.cif", "plain.txt");
+
+        LogDTO log = auditService.getLogs().getFirst();
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+        assertTrue(cryptoService.decryptCalled);
+        assertEquals(OperationResult.FAILED, log.getResult());
+        assertEquals(ActionType.DECRYPT_FILE, log.getActionType());
+    }
+
+    @Test
     void unlockAndLockTokenShouldUseCryptoServiceSession() {
         AuditService auditService = new AuditService();
         StubCryptoService cryptoService = new StubCryptoService();
@@ -68,11 +175,49 @@ class FileCryptoServiceTest {
         assertEquals(ActionType.TOKEN_LOCK, auditService.getLogs().get(1).getActionType());
     }
 
+    @Test
+    void unlockTokenShouldLogFailureWhenPinIsRejected() {
+        AuditService auditService = new AuditService();
+        StubCryptoService cryptoService = new StubCryptoService();
+        cryptoService.openSessionResult = OperationResult.FAILED;
+        FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
+
+        assertEquals(OperationResult.FAILED, fileCryptoService.unlockToken("bad-pin".toCharArray()));
+
+        LogDTO log = auditService.getLogs().getFirst();
+
+        assertFalse(fileCryptoService.isTokenUnlocked());
+        assertEquals(ActionType.TOKEN_UNLOCK, log.getActionType());
+        assertEquals(OperationResult.FAILED, log.getResult());
+        assertEquals("Token unlock failed.", log.getMessage());
+    }
+
+    @Test
+    void lockTokenShouldLogFailureReturnedByCryptoService() {
+        AuditService auditService = new AuditService();
+        StubCryptoService cryptoService = new StubCryptoService();
+        cryptoService.closeSessionResult = OperationResult.FAILED;
+        FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
+
+        assertEquals(OperationResult.FAILED, fileCryptoService.lockToken());
+
+        LogDTO log = auditService.getLogs().getFirst();
+
+        assertEquals(ActionType.TOKEN_LOCK, log.getActionType());
+        assertEquals(OperationResult.FAILED, log.getResult());
+        assertEquals("Token lock failed.", log.getMessage());
+    }
+
     private static class StubCryptoService implements CryptoService {
         private boolean sessionOpen;
         private boolean encryptCalled;
+        private boolean decryptCalled;
         private String lastInputPath;
         private String lastOutputPath;
+        private OperationResult openSessionResult = OperationResult.SUCCESS;
+        private OperationResult closeSessionResult = OperationResult.SUCCESS;
+        private OperationResult encryptResult = OperationResult.SUCCESS;
+        private OperationResult decryptResult = OperationResult.SUCCESS;
 
         @Override
         public void initialize() {
@@ -80,14 +225,14 @@ class FileCryptoServiceTest {
 
         @Override
         public OperationResult openSession(char[] pin) {
-            sessionOpen = true;
-            return OperationResult.SUCCESS;
+            sessionOpen = openSessionResult == OperationResult.SUCCESS;
+            return openSessionResult;
         }
 
         @Override
         public OperationResult closeSession() {
             sessionOpen = false;
-            return OperationResult.SUCCESS;
+            return closeSessionResult;
         }
 
         @Override
@@ -101,8 +246,8 @@ class FileCryptoServiceTest {
             lastInputPath = inputPath;
             lastOutputPath = outputPath;
             return new CryptoResult(
-                    OperationResult.SUCCESS,
-                    "File encrypted successfully.",
+                    encryptResult,
+                    encryptResult == OperationResult.SUCCESS ? "File encrypted successfully." : "File encryption failed.",
                     inputPath,
                     outputPath,
                     ActionType.ENCRYPT_FILE
@@ -111,9 +256,12 @@ class FileCryptoServiceTest {
 
         @Override
         public CryptoResult decryptFile(String inputPath, String outputPath) {
+            decryptCalled = true;
+            lastInputPath = inputPath;
+            lastOutputPath = outputPath;
             return new CryptoResult(
-                    OperationResult.SUCCESS,
-                    "File decrypted successfully.",
+                    decryptResult,
+                    decryptResult == OperationResult.SUCCESS ? "File decrypted successfully." : "File decryption failed.",
                     inputPath,
                     outputPath,
                     ActionType.DECRYPT_FILE
