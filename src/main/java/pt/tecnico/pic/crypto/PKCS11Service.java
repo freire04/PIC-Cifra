@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.security.AuthProvider;
 import java.security.GeneralSecurityException;
@@ -164,11 +165,24 @@ public class PKCS11Service implements CryptoService {
                     ActionType.ENCRYPT_FILE);
         }
 
+        Path input;
+        Path output;
         try {
-            Path input = Path.of(inputPath);
-            Path output = Path.of(outputPath);
+            input = Path.of(inputPath);
+            output = Path.of(outputPath);
+        } catch (InvalidPathException ex) {
+            return result(OperationResult.FAILED, "Input or output file path is invalid.", inputPath, outputPath,
+                    ActionType.ENCRYPT_FILE);
+        }
 
-            byte[] plaintext = Files.readAllBytes(input);
+        if (isSameNormalizedPath(input, output)) {
+            return result(OperationResult.FAILED, "Input and output files must be different.", inputPath, outputPath,
+                    ActionType.ENCRYPT_FILE);
+        }
+
+        byte[] plaintext = null;
+        try {
+            plaintext = Files.readAllBytes(input);
             byte[] iv = new byte[GCM_IV_BYTES];
             java.security.SecureRandom.getInstanceStrong().nextBytes(iv);
 
@@ -186,6 +200,10 @@ public class PKCS11Service implements CryptoService {
         } catch (GeneralSecurityException | RuntimeException ex) {
             return result(OperationResult.ERROR, "File encryption failed.", inputPath, outputPath,
                     ActionType.ENCRYPT_FILE);
+        } finally {
+            if (plaintext != null) {
+                Arrays.fill(plaintext, (byte) 0);
+            }
         }
     }
 
@@ -201,14 +219,28 @@ public class PKCS11Service implements CryptoService {
                     ActionType.DECRYPT_FILE);
         }
 
+        Path input;
+        Path output;
         try {
-            Path input = Path.of(inputPath);
-            Path output = Path.of(outputPath);
+            input = Path.of(inputPath);
+            output = Path.of(outputPath);
+        } catch (InvalidPathException ex) {
+            return result(OperationResult.FAILED, "Input or output file path is invalid.", inputPath, outputPath,
+                    ActionType.DECRYPT_FILE);
+        }
+
+        if (isSameNormalizedPath(input, output)) {
+            return result(OperationResult.FAILED, "Input and output files must be different.", inputPath, outputPath,
+                    ActionType.DECRYPT_FILE);
+        }
+
+        byte[] plaintext = null;
+        try {
             EncryptedFile encryptedFile = readEncryptedFile(input);
 
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", provider);
             cipher.init(Cipher.DECRYPT_MODE, secretKey, new GCMParameterSpec(GCM_TAG_BITS, encryptedFile.iv()));
-            byte[] plaintext = cipher.doFinal(encryptedFile.ciphertext());
+            plaintext = cipher.doFinal(encryptedFile.ciphertext());
 
             writePlainFile(output, plaintext);
 
@@ -226,6 +258,10 @@ public class PKCS11Service implements CryptoService {
         } catch (GeneralSecurityException | RuntimeException ex) {
             return result(OperationResult.ERROR, "File decryption failed.", inputPath, outputPath,
                     ActionType.DECRYPT_FILE);
+        } finally {
+            if (plaintext != null) {
+                Arrays.fill(plaintext, (byte) 0);
+            }
         }
     }
 
@@ -342,6 +378,21 @@ public class PKCS11Service implements CryptoService {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private static boolean isSameNormalizedPath(Path firstPath, Path secondPath) {
+        Path normalizedFirstPath = firstPath.toAbsolutePath().normalize();
+        Path normalizedSecondPath = secondPath.toAbsolutePath().normalize();
+
+        if (isWindows()) {
+            return normalizedFirstPath.toString().equalsIgnoreCase(normalizedSecondPath.toString());
+        }
+
+        return normalizedFirstPath.equals(normalizedSecondPath);
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase().contains("win");
     }
 
     private void clearSessionState() {
