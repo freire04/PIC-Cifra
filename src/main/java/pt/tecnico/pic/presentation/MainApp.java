@@ -1,38 +1,45 @@
 package pt.tecnico.pic.presentation;
 
 import javafx.application.Application;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import pt.tecnico.pic.application.AppController;
+import pt.tecnico.pic.crypto.PKCS11Service;
+import pt.tecnico.pic.service.AccountService;
+import pt.tecnico.pic.service.AuditService;
+import pt.tecnico.pic.service.FileCryptoService;
+import pt.tecnico.pic.service.PasswordService;
+import pt.tecnico.pic.store.AccountStore;
 
 public class MainApp extends Application {
     private static final String WINDOW_TITLE = "PIC - Cifra de Ficheiros";
 
     private AppController appController;
+    private SceneManager sceneManager;
 
     @Override
     public void start(Stage stage) {
-        appController = new AppController();
+        AccountStore accountStore = new AccountStore();
+        PasswordService passwordService = new PasswordService();
+        AccountService accountService = new AccountService(accountStore, passwordService);
 
-        Label placeholderLabel = new Label("Cifra de Ficheiros - Placeholder");
-        placeholderLabel.getStyleClass().add("placeholder-label");
+        PKCS11Service pkcs11Service = new PKCS11Service();
+        AuditService auditService = new AuditService();
+        FileCryptoService fileCryptoService = new FileCryptoService(pkcs11Service, auditService);
+        
+        // TODO (S1-10): AppController should later receive AccountService like this:
+        // AppController(accountService, auditService, fileCryptoService); or similar.
 
-        VBox root = new VBox(placeholderLabel);
-        root.setAlignment(Pos.CENTER);
-        root.setPadding(new Insets(24));
-        root.getStyleClass().add("app-root");
-
-        Scene scene = new Scene(root, 640, 360);
-        String stylesheet = getClass().getResource("/css/application.css").toExternalForm();
-        scene.getStylesheets().add(stylesheet);
+        appController = new AppController(auditService, fileCryptoService);
+        sceneManager = new SceneManager(stage, appController);
 
         stage.setTitle(WINDOW_TITLE);
-        stage.setScene(scene);
+        sceneManager.showLogin();
         stage.show();
+    }
+
+    @Override
+    public void stop() {
+        // fechar recursos, guardar estado, etc. se necessário
     }
 
     public static void main(String[] args) {
