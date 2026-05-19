@@ -155,8 +155,7 @@ public class SceneManager {
     }
 
     public void showDashboard() {
-        DashboardViewController controller =
-                new DashboardViewController(appController, this);
+        DashboardViewController controller = new DashboardViewController(appController, this);
 
         Label title = new Label(selectedRole + " Dashboard");
 
@@ -208,8 +207,7 @@ public class SceneManager {
     }
 
     public void showAuditLogs() {
-        AuditLogViewController controller =
-                new AuditLogViewController(appController, this);
+        AuditLogViewController controller = new AuditLogViewController(appController, this);
 
         Label title = new Label("Audit Logs View");
 
@@ -301,11 +299,9 @@ public class SceneManager {
     private void showFileCryptoPlaceholder(boolean encryptionMode) {
 
         if (encryptionMode) {
-            FileEncryptionViewController controller =
-                    new FileEncryptionViewController(appController, this);
+            FileEncryptionViewController controller = new FileEncryptionViewController(appController, this);
         } else {
-            FileDecryptionViewController controller =
-                    new FileDecryptionViewController(appController, this);
+            FileDecryptionViewController controller = new FileDecryptionViewController(appController, this);
         }
 
         String dropText = encryptionMode

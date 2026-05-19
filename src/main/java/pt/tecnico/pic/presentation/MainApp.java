@@ -3,6 +3,7 @@ package pt.tecnico.pic.presentation;
 import javafx.application.Application;
 import javafx.stage.Stage;
 import pt.tecnico.pic.application.AppController;
+import pt.tecnico.pic.crypto.PKCS11Service;
 import pt.tecnico.pic.service.AccountService;
 import pt.tecnico.pic.service.AuditService;
 import pt.tecnico.pic.service.FileCryptoService;
@@ -21,15 +22,13 @@ public class MainApp extends Application {
         PasswordService passwordService = new PasswordService();
         AccountService accountService = new AccountService(accountStore, passwordService);
 
+        PKCS11Service pkcs11Service = new PKCS11Service();
         AuditService auditService = new AuditService();
-
-        // JavaCryptoService javaCryptoService = new JavaCryptoService();
-        // JavaCryptoService é para ser criado nesta classe assim que ele for definido.
-        // Falta injetar o javaCryptoService no fileCryptoService, assumo que isso seja o S01-09.
-        // Se estiver errado, apaguem estes comentários acima, por favor - Miguel.
-        FileCryptoService fileCryptoService = new FileCryptoService(auditService);
+        FileCryptoService fileCryptoService = new FileCryptoService(pkcs11Service, auditService);
         
-        // Falta injetar o accountService no appController, assumo que isso seja o S01-10 (ou parecido).
+        // TODO (S1-10): AppController should later receive AccountService like this:
+        // AppController(accountService, auditService, fileCryptoService); or similar.
+
         appController = new AppController(auditService, fileCryptoService);
         sceneManager = new SceneManager(stage, appController);
 
