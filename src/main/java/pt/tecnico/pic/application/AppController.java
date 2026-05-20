@@ -1,5 +1,6 @@
 package pt.tecnico.pic.application;
 
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Set;
 
@@ -9,8 +10,6 @@ import pt.tecnico.pic.dto.LoginResult;
 import pt.tecnico.pic.service.AccountService;
 import pt.tecnico.pic.service.AuditService;
 import pt.tecnico.pic.service.FileCryptoService;
-import pt.tecnico.pic.service.PasswordService;
-import pt.tecnico.pic.store.AccountStore;
 
 /**
  * Central application facade.
@@ -27,10 +26,7 @@ public class AppController {
     private final FileCryptoService fileCryptoService;
 
     public AppController() {
-        this(
-            new AccountService(new AccountStore(), new PasswordService()),
-            new AuditService()
-        );
+        this(new AccountService(), new AuditService());
     }
     
     public AppController(AccountService accountService, AuditService auditService) {
@@ -49,9 +45,22 @@ public class AppController {
 
     public LoginResult login(String username, char[] password) {
         // TODO (S1-10): delegate to AccountService.authenticate(...) when authentication is implemented.
+        // Placeholder
+        if ("abc".equals(username) && Arrays.equals(password, "123".toCharArray())) {
+            return new LoginResult(
+                    OperationResult.SUCCESS,
+                    "Login successful.",
+                    -1,
+                    username,
+                    Set.of(),
+                    false
+            ); 
+        }
+        
+        // Placeholder
         return new LoginResult(
                 OperationResult.ERROR,
-                "Login not implemented yet.",
+                "Login failed.",
                 -1,
                 username,
                 Set.of(),

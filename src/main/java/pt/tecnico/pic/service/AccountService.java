@@ -1,6 +1,7 @@
 package pt.tecnico.pic.service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import pt.tecnico.pic.domain.Account;
@@ -14,9 +15,13 @@ public class AccountService {
     private final AccountStore accountStore;
     private final PasswordService passwordService;
 
+    public AccountService() {
+        this(new AccountStore(), new PasswordService());
+    }
+    
     public AccountService(AccountStore accountStore, PasswordService passwordService) {
-        this.accountStore = accountStore;
-        this.passwordService = passwordService;
+        this.accountStore = Objects.requireNonNull(accountStore, "accountStore must not be null");
+        this.passwordService = Objects.requireNonNull(passwordService, "passwordService must not be null");
     }
     
     public Account authenticate(String username, char[] password) {

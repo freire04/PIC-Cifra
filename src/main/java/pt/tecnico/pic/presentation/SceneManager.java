@@ -53,8 +53,7 @@ public class SceneManager {
 
     public void showLogin() {   
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/src/main/resources/fxml/LoginView.fxml"));
-
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/LoginView.fxml"));
             LoginViewController controller = new LoginViewController(appController, this);
             loader.setController(controller);
             Parent root = loader.load();
@@ -349,9 +348,10 @@ public class SceneManager {
         setScene(root);
     }
 
-
     private void setScene(Parent root) {
-        primaryStage.setScene(new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT));
+        Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
+        primaryStage.setScene(scene);
+        scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
     }
 
 }

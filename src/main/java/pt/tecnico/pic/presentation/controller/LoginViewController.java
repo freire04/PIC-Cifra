@@ -31,7 +31,7 @@ public class LoginViewController {
 
     @FXML
     public void initialize() {
-        clearFields();
+        errorLabel.setText("");
     }
 
     @FXML
@@ -39,37 +39,28 @@ public class LoginViewController {
         String username = usernameField.getText();
         char[] password = passwordField.getText().toCharArray();
 
-        try {
-            LoginResult loginResult = appController.login(username, password);
+        LoginResult loginResult = appController.login(username, password);
 
-            Arrays.fill(password, '\0');
-
-            if (loginResult.getResult() != OperationResult.SUCCESS) {
-                showError(loginResult.getMessage());
-                passwordField.clear();
-                return;
-            }
-
-            clearFields();
-
-            if (loginResult.mustChangePassword()) {
-                sceneManager.showChangePassword();
-            } else {
-                sceneManager.showRoleSelection();
-            }
-
-        } finally {
-            Arrays.fill(password, '\0');
+        if (loginResult.getResult() != OperationResult.SUCCESS) {
+            showError(loginResult.getMessage());
+            passwordField.clear();
+            return;
         }
-    }
 
-    @FXML
-    public void onLoginWithTempPasswordClicked() {
-        sceneManager.showChangePassword();
+        clearFields();
+
+        if (loginResult.mustChangePassword()) {
+            sceneManager.showChangePassword();
+        } else {
+            sceneManager.showRoleSelection();
+        }
+
+        Arrays.fill(password, '\0');
     }
 
     public void showError(String message) {
         errorLabel.setText(message);
+        errorLabel.setStyle("-fx-text-fill: red;");
     }
 
     public void clearFields() {

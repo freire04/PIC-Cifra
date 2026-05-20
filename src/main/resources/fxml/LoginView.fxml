@@ -9,18 +9,22 @@
 
     <Label text="Login"/>
 
+    <Label text="Hint: Usa 'abc' como username e '123' como password para testar"
+          style="-fx-text-fill: gray; -fx-font-size: 11px;"/>
+
     <TextField fx:id="usernameField"
-               promptText="Username"
-               maxWidth="240"/>
+              promptText="Username"
+              maxWidth="240"/>
 
     <PasswordField fx:id="passwordField"
                    promptText="Password"
                    maxWidth="240"/>
 
+    <Label fx:id="errorLabel"
+          text=""
+          maxWidth="240"/>
+
     <Button text="Login"
             onAction="#onLoginClicked"/>
-
-    <Button text="Login with temporary password"
-            onAction="#onLoginWithTempPasswordClicked"/>
 
 </VBox>
