@@ -1,7 +1,9 @@
 package pt.tecnico.pic.presentation;
 
+import java.io.IOException;
 import java.util.Objects;
 
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -11,7 +13,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -51,34 +52,45 @@ public class SceneManager {
     }
 
     public void showLogin() {   
-        
-        LoginViewController controller = new LoginViewController(appController, this);
-        
-        Label title = new Label("Login");
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/src/main/resources/fxml/LoginView.fxml"));
 
-        TextField usernameField = new TextField();
-        usernameField.setPromptText("Username");
-        usernameField.setMaxWidth(240);
+            LoginViewController controller = new LoginViewController(appController, this);
+            loader.setController(controller);
+            Parent root = loader.load();
 
-        PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("Password");
-        passwordField.setMaxWidth(240);
+            setScene(root);
 
-        Button loginButton = new Button("Login");
-        loginButton.setOnAction(event -> {
-            // TODO: replace this placeholder flow with real authentication via appController
-            // before navigating to role selection; username/password fields are currently ignored.
-            showRoleSelection();
-        });
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load LoginView.fxml", e);
+        }
+    }
 
-        Button temporaryPasswordButton = new Button("Login with temporary password");
-        temporaryPasswordButton.setOnAction(event -> {
-            // TODO: replace this placeholder flow with real authentication / temporary-password
-            // validation via appController before forcing password change.
-            showChangePassword();
-        });
+    public void showChangePassword() {
+        ChangePasswordViewController controller = new ChangePasswordViewController(appController, this);
 
-        VBox root = new VBox(12, title, usernameField, passwordField, loginButton, temporaryPasswordButton);
+        Label title = new Label("Change Password");
+
+        PasswordField oldPasswordField = new PasswordField();
+        oldPasswordField.setPromptText("Current password");
+        oldPasswordField.setMaxWidth(240);
+
+        PasswordField newPasswordField = new PasswordField();
+        newPasswordField.setPromptText("New password");
+        newPasswordField.setMaxWidth(240);
+
+        PasswordField confirmPasswordField = new PasswordField();
+        confirmPasswordField.setPromptText("Confirm new password");
+        confirmPasswordField.setMaxWidth(240);
+
+        Button confirmButton = new Button("Change Password");
+        confirmButton.setOnAction(event -> showRoleSelection());
+
+        Button cancelButton = new Button("Back");
+        cancelButton.setOnAction(event -> logout());
+
+        VBox root = new VBox(12, title, oldPasswordField, newPasswordField,
+                confirmPasswordField, confirmButton, cancelButton);
         root.setAlignment(Pos.CENTER);
 
         setScene(root);
@@ -256,36 +268,6 @@ public class SceneManager {
         root.setCenter(centerContent);
 
         BorderPane.setAlignment(topRightButtons, Pos.TOP_RIGHT);
-
-        setScene(root);
-    }
-
-    public void showChangePassword() {
-        ChangePasswordViewController controller = new ChangePasswordViewController(appController, this);
-
-        Label title = new Label("Change Password");
-
-        PasswordField oldPasswordField = new PasswordField();
-        oldPasswordField.setPromptText("Current password");
-        oldPasswordField.setMaxWidth(240);
-
-        PasswordField newPasswordField = new PasswordField();
-        newPasswordField.setPromptText("New password");
-        newPasswordField.setMaxWidth(240);
-
-        PasswordField confirmPasswordField = new PasswordField();
-        confirmPasswordField.setPromptText("Confirm new password");
-        confirmPasswordField.setMaxWidth(240);
-
-        Button confirmButton = new Button("Change Password");
-        confirmButton.setOnAction(event -> showRoleSelection());
-
-        Button cancelButton = new Button("Back");
-        cancelButton.setOnAction(event -> logout());
-
-        VBox root = new VBox(12, title, oldPasswordField, newPasswordField,
-                confirmPasswordField, confirmButton, cancelButton);
-        root.setAlignment(Pos.CENTER);
 
         setScene(root);
     }
