@@ -45,7 +45,7 @@ public class AppController {
 
     public LoginResult login(String username, char[] password) {
         // TODO (S1-10): delegate to AccountService.authenticate(...) when authentication is implemented.
-        // Placeholder
+        // Placeholder for successful login
         if ("abc".equals(username) && Arrays.equals(password, "123".toCharArray())) {
             return new LoginResult(
                     OperationResult.SUCCESS,
@@ -56,8 +56,20 @@ public class AppController {
                     false
             ); 
         }
+
+        // Placeholder for password change flow
+        else if ("teste".equals(username) && Arrays.equals(password, "123".toCharArray())) {
+            return new LoginResult(
+                    OperationResult.SUCCESS,
+                    "Login successful.",
+                    -1,
+                    username,
+                    Set.of(),
+                    true
+            ); 
+        }
         
-        // Placeholder
+        // Placeholder for failed login
         return new LoginResult(
                 OperationResult.ERROR,
                 "Login failed.",

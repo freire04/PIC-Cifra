@@ -7,24 +7,35 @@
       spacing="12"
       alignment="CENTER">
 
-    <Label text="Login"/>
+      <Label text="Login"/>
 
-    <Label text="Hint: Usa 'abc' como username e '123' como password para testar"
-          style="-fx-text-fill: gray; -fx-font-size: 11px;"/>
+      <VBox spacing="4"
+            alignment="CENTER">
 
-    <TextField fx:id="usernameField"
-              promptText="Username"
-              maxWidth="240"/>
+            <Label text="Test accounts:"
+                  style="-fx-text-fill: gray; -fx-font-size: 11px; -fx-font-weight: bold;"/>
 
-    <PasswordField fx:id="passwordField"
-                   promptText="Password"
-                   maxWidth="240"/>
+            <Label text="abc / 123 → normal login"
+                  style="-fx-text-fill: gray; -fx-font-size: 11px;"/>
 
-    <Label fx:id="errorLabel"
-          text=""
-          maxWidth="240"/>
+            <Label text="teste / 123 → must change password"
+                  style="-fx-text-fill: gray; -fx-font-size: 11px;"/>
 
-    <Button text="Login"
-            onAction="#onLoginClicked"/>
+      </VBox>
+
+      <TextField fx:id="usernameField"
+                 promptText="Username"
+                 maxWidth="240"/>
+
+      <PasswordField fx:id="passwordField"
+                     promptText="Password"
+                     maxWidth="240"/>
+
+      <Label fx:id="errorLabel"
+             text=""
+             maxWidth="240"/>
+
+      <Button text="Login"
+              onAction="#onLoginClicked"/>
 
 </VBox>

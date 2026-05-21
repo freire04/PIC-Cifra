@@ -1,9 +1,11 @@
 package pt.tecnico.pic.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import pt.tecnico.pic.domain.ActionType;
@@ -58,7 +60,7 @@ class AppControllerTest {
     }
 
     @Test
-    void loginShouldSucceedWithPlaceholderCredentials() {
+    void loginShouldSucceedWithValidCredentialsPlaceholder() {
         AppController appController = new AppController();
 
         LoginResult result = appController.login("abc", "123".toCharArray());
@@ -66,15 +68,29 @@ class AppControllerTest {
         assertEquals(OperationResult.SUCCESS, result.getResult());
         assertEquals("Login successful.", result.getMessage());
         assertEquals("abc", result.getUsername());
+        assertFalse(result.mustChangePassword());
     }
 
     @Test
-    void loginShouldFailWithInvalidCredentials() {
+    void loginShouldRequirePasswordChangePlaceholder() {
         AppController appController = new AppController();
 
-        LoginResult result = appController.login("aaaaaa", "wrong".toCharArray());
+        LoginResult result = appController.login("teste", "123".toCharArray());
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+        assertEquals("Login successful.", result.getMessage());
+        assertEquals("teste", result.getUsername());
+        assertTrue(result.mustChangePassword());
+    }
+
+    @Test
+    void loginShouldFailWithInvalidCredentialsPlaceholder() {
+        AppController appController = new AppController();
+
+        LoginResult result = appController.login("abc", "wrong".toCharArray());
 
         assertEquals(OperationResult.ERROR, result.getResult());
         assertEquals("Login failed.", result.getMessage());
+        assertFalse(result.mustChangePassword());
     }
 }
