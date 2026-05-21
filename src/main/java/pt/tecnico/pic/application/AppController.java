@@ -1,6 +1,5 @@
 package pt.tecnico.pic.application;
 
-import java.util.Arrays;
 import java.util.Objects;
 import java.util.Set;
 
@@ -46,7 +45,7 @@ public class AppController {
     public LoginResult login(String username, char[] password) {
         // TODO (S1-10): delegate to AccountService.authenticate(...) when authentication is implemented.
         // Placeholder for successful login
-        if ("abc".equals(username) && Arrays.equals(password, "123".toCharArray())) {
+        if ("abc".equals(username) && isPlaceholderPassword(password)) {
             return new LoginResult(
                     OperationResult.SUCCESS,
                     "Login successful.",
@@ -58,7 +57,7 @@ public class AppController {
         }
 
         // Placeholder for password change flow
-        else if ("teste".equals(username) && Arrays.equals(password, "123".toCharArray())) {
+        else if ("teste".equals(username) && isPlaceholderPassword(password)) {
             return new LoginResult(
                     OperationResult.SUCCESS,
                     "Login successful.",
@@ -78,6 +77,14 @@ public class AppController {
                 Set.of(),
                 false
         );
+    }
+
+    private boolean isPlaceholderPassword(char[] password) {
+        return password != null
+                && password.length == 3
+                && password[0] == '1'
+                && password[1] == '2'
+                && password[2] == '3';
     }
 
     public void recordLogin(Integer accountId, String username, OperationResult result, String message) {
