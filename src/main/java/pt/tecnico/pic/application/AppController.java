@@ -21,6 +21,7 @@ import pt.tecnico.pic.service.FileCryptoService;
 public class AppController {
 
     private static final char[] PLACEHOLDER_PASSWORD = {'1', '2', '3'};
+    private static final char[] EMPTY_PASSWORD = new char[0];
 
     private final AccountService accountService;
     private final AuditService auditService;
@@ -82,13 +83,14 @@ public class AppController {
     }
 
     private boolean isPlaceholderPassword(char[] password) {
-        int diff = (password == null ? 1 : 0);
-        int length = password == null ? 0 : password.length;
-        diff |= length ^ PLACEHOLDER_PASSWORD.length;
+        char[] candidate = password == null ? EMPTY_PASSWORD : password;
+        int maxLength = Math.max(candidate.length, PLACEHOLDER_PASSWORD.length);
+        int diff = candidate.length ^ PLACEHOLDER_PASSWORD.length;
 
-        for (int i = 0; i < PLACEHOLDER_PASSWORD.length; i++) {
-            char value = i < length ? password[i] : 0;
-            diff |= value ^ PLACEHOLDER_PASSWORD[i];
+        for (int i = 0; i < maxLength; i++) {
+            char candidateValue = i < candidate.length ? candidate[i] : 0;
+            char placeholderValue = i < PLACEHOLDER_PASSWORD.length ? PLACEHOLDER_PASSWORD[i] : 0;
+            diff |= candidateValue ^ placeholderValue;
         }
 
         return diff == 0;
