@@ -1,5 +1,6 @@
 package pt.tecnico.pic.application;
 
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Set;
 
@@ -19,9 +20,6 @@ import pt.tecnico.pic.service.FileCryptoService;
 // full application flows (login, role selection, account management, etc.).
 
 public class AppController {
-
-    private static final String PLACEHOLDER_PASSWORD = "123";
-    private static final char[] EMPTY_PASSWORD = new char[0];
 
     private final AccountService accountService;
     private final AuditService auditService;
@@ -48,7 +46,7 @@ public class AppController {
     public LoginResult login(String username, char[] password) {
         // TODO (S1-10): delegate to AccountService.authenticate(...) when authentication is implemented.
         // Placeholder for successful login
-        if ("abc".equals(username) && isPlaceholderPassword(password)) {
+        if ("abc".equals(username) && Arrays.equals(password, "123".toCharArray())) {
             return new LoginResult(
                     OperationResult.SUCCESS,
                     "Login successful.",
@@ -60,7 +58,7 @@ public class AppController {
         }
 
         // Placeholder for password change flow
-        else if ("teste".equals(username) && isPlaceholderPassword(password)) {
+        else if ("teste".equals(username) && Arrays.equals(password, "123".toCharArray())) {
             return new LoginResult(
                     OperationResult.SUCCESS,
                     "Login successful.",
@@ -80,20 +78,6 @@ public class AppController {
                 Set.of(),
                 false
         );
-    }
-
-    private boolean isPlaceholderPassword(char[] password) {
-        char[] candidate = password == null ? EMPTY_PASSWORD : password;
-        int maxLength = Math.max(candidate.length, PLACEHOLDER_PASSWORD.length());
-        int differenceAccumulator = candidate.length ^ PLACEHOLDER_PASSWORD.length();
-
-        for (int i = 0; i < maxLength; i++) {
-            char candidateValue = i < candidate.length ? candidate[i] : 0;
-            char placeholderValue = i < PLACEHOLDER_PASSWORD.length() ? PLACEHOLDER_PASSWORD.charAt(i) : 0;
-            differenceAccumulator |= candidateValue ^ placeholderValue;
-        }
-
-        return differenceAccumulator == 0;
     }
 
     public void recordLogin(Integer accountId, String username, OperationResult result, String message) {
