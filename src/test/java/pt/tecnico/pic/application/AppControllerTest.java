@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.dto.LogDTO;
+import pt.tecnico.pic.dto.LoginResult;
 import pt.tecnico.pic.service.AccountService;
 import pt.tecnico.pic.service.AuditService;
 import pt.tecnico.pic.service.FileCryptoService;
@@ -54,5 +55,26 @@ class AppControllerTest {
                 IllegalArgumentException.class,
                 () -> new AppController(accountService, appAuditService, fileCryptoService)
         );
+    }
+
+    @Test
+    void loginShouldSucceedWithPlaceholderCredentials() {
+        AppController appController = new AppController();
+
+        LoginResult result = appController.login("abc", "123".toCharArray());
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+        assertEquals("Login successful.", result.getMessage());
+        assertEquals("abc", result.getUsername());
+    }
+
+    @Test
+    void loginShouldFailWithInvalidCredentials() {
+        AppController appController = new AppController();
+
+        LoginResult result = appController.login("aaaaaa", "wrong".toCharArray());
+
+        assertEquals(OperationResult.ERROR, result.getResult());
+        assertEquals("Login failed.", result.getMessage());
     }
 }
