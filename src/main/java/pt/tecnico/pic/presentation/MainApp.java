@@ -18,7 +18,7 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage stage) {
-        AccountStore accountStore = new AccountStore();
+        AccountStore accountStore = new AccountStore("data/accounts.json");
         PasswordService passwordService = new PasswordService();
         AccountService accountService = new AccountService(accountStore, passwordService);
 
