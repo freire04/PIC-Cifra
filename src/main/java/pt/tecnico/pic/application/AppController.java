@@ -20,7 +20,7 @@ import pt.tecnico.pic.service.FileCryptoService;
 
 public class AppController {
 
-    private static final char[] PLACEHOLDER_PASSWORD = {'1', '2', '3'};
+    private static final String PLACEHOLDER_PASSWORD = "123";
     private static final char[] EMPTY_PASSWORD = new char[0];
 
     private final AccountService accountService;
@@ -84,16 +84,16 @@ public class AppController {
 
     private boolean isPlaceholderPassword(char[] password) {
         char[] candidate = password == null ? EMPTY_PASSWORD : password;
-        int maxLength = Math.max(candidate.length, PLACEHOLDER_PASSWORD.length);
-        int diff = candidate.length ^ PLACEHOLDER_PASSWORD.length;
+        int maxLength = Math.max(candidate.length, PLACEHOLDER_PASSWORD.length());
+        int differenceAccumulator = candidate.length ^ PLACEHOLDER_PASSWORD.length();
 
         for (int i = 0; i < maxLength; i++) {
             char candidateValue = i < candidate.length ? candidate[i] : 0;
-            char placeholderValue = i < PLACEHOLDER_PASSWORD.length ? PLACEHOLDER_PASSWORD[i] : 0;
-            diff |= candidateValue ^ placeholderValue;
+            char placeholderValue = i < PLACEHOLDER_PASSWORD.length() ? PLACEHOLDER_PASSWORD.charAt(i) : 0;
+            differenceAccumulator |= candidateValue ^ placeholderValue;
         }
 
-        return diff == 0;
+        return differenceAccumulator == 0;
     }
 
     public void recordLogin(Integer accountId, String username, OperationResult result, String message) {
