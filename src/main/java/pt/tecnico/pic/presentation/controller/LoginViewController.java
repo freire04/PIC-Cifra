@@ -39,23 +39,25 @@ public class LoginViewController {
         String username = usernameField.getText();
         char[] password = passwordField.getText().toCharArray();
 
-        LoginResult loginResult = appController.login(username, password);
+        try{
+            LoginResult loginResult = appController.login(username, password);
 
-        if (loginResult.getResult() != OperationResult.SUCCESS) {
-            showError(loginResult.getMessage());
-            passwordField.clear();
-            return;
+            if (loginResult.getResult() != OperationResult.SUCCESS) {
+                showError(loginResult.getMessage());
+                passwordField.clear();
+                return;
+            }
+
+            clearFields();
+
+            if (loginResult.mustChangePassword()) {
+                sceneManager.showChangePassword();
+            } else {
+                sceneManager.showRoleSelection();
+            }
+        } finally {
+            Arrays.fill(password, '\0');
         }
-
-        clearFields();
-
-        if (loginResult.mustChangePassword()) {
-            sceneManager.showChangePassword();
-        } else {
-            sceneManager.showRoleSelection();
-        }
-
-        Arrays.fill(password, '\0');
     }
 
     public void showError(String message) {
