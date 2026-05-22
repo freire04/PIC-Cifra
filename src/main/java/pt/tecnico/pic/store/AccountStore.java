@@ -16,6 +16,10 @@ public class AccountStore {
     private final Path accountsFilePath;
     private final ObjectMapper objectMapper;
 
+    public AccountStore() {
+        this("data/accounts.json");
+    }
+
     public AccountStore(String accountsFilePath) {
         this(Path.of(accountsFilePath));
     }
