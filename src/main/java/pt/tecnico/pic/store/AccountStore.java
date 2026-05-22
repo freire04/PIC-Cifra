@@ -79,13 +79,13 @@ public class AccountStore {
     public List<Account> findActive() {
         return readAccounts().stream()
                 .filter(Account::isActive)
-                .toList();
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
     }
 
     public List<Account> findDisabled() {
         return readAccounts().stream()
                 .filter(account -> !account.isActive())
-                .toList();
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
     }
 
     

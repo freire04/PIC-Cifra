@@ -96,6 +96,25 @@ class AccountStoreTest {
     }
 
     @Test
+    void queryMethodsReturnMutableListsConsistently() {
+        Path accountsPath = tempDir.resolve("accounts.json");
+        AccountStore store = new AccountStore(accountsPath);
+
+        store.save(new Account(1, "active", "hash1", Set.of(Role.USER), true));
+        store.save(new Account(2, "disabled", "hash2", Set.of(Role.USER), false));
+
+        assertDoesNotThrow(() -> store.findAll().add(
+                new Account(3, "other", "hash3", Set.of(Role.USER), true)
+        ));
+        assertDoesNotThrow(() -> store.findActive().add(
+                new Account(3, "other", "hash3", Set.of(Role.USER), true)
+        ));
+        assertDoesNotThrow(() -> store.findDisabled().add(
+                new Account(4, "other-disabled", "hash4", Set.of(Role.USER), false)
+        ));
+    }
+
+    @Test
     void missingFileReturnsEmptyResults() {
         Path accountsPath = tempDir.resolve("accounts.json");
         AccountStore store = new AccountStore(accountsPath);
