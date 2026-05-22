@@ -33,7 +33,8 @@
 
       <Label fx:id="errorLabel"
              text=""
-             maxWidth="240"/>
+             maxWidth="240"
+             wrapText="true"/>
 
       <Button text="Login"
               onAction="#onLoginClicked"/>
