@@ -13,12 +13,14 @@ import pt.tecnico.pic.store.AccountStore;
 public class MainApp extends Application {
     private static final String WINDOW_TITLE = "PIC - Cifra de Ficheiros";
 
+    private final String accountsFilePath = "data/accounts.json";
+
     private AppController appController;
     private SceneManager sceneManager;
 
     @Override
     public void start(Stage stage) {
-        AccountStore accountStore = new AccountStore("data/accounts.json");
+        AccountStore accountStore = new AccountStore(accountsFilePath);
         PasswordService passwordService = new PasswordService();
         AccountService accountService = new AccountService(accountStore, passwordService);
 

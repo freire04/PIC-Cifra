@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 public class AccountStore {
@@ -25,7 +26,10 @@ public class AccountStore {
     }
     
     public AccountStore(Path accountsFilePath) {
-        this.accountsFilePath = accountsFilePath;
+        this.accountsFilePath = Objects.requireNonNull(
+                accountsFilePath,
+                "accountsFilePath must not be null"
+        );
         this.objectMapper = new ObjectMapper()
                 .enable(SerializationFeature.INDENT_OUTPUT);
     }
