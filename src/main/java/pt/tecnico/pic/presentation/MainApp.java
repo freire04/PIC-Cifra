@@ -25,11 +25,8 @@ public class MainApp extends Application {
         PKCS11Service pkcs11Service = new PKCS11Service();
         AuditService auditService = new AuditService();
         FileCryptoService fileCryptoService = new FileCryptoService(pkcs11Service, auditService);
-        
-        // TODO (S1-10): AppController should later receive AccountService like this:
-        // AppController(accountService, auditService, fileCryptoService); or similar.
 
-        appController = new AppController(auditService, fileCryptoService);
+        appController = new AppController(accountService, auditService, fileCryptoService);
         sceneManager = new SceneManager(stage, appController);
 
         stage.setTitle(WINDOW_TITLE);

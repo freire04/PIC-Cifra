@@ -1,13 +1,5 @@
 package pt.tecnico.pic.crypto;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -37,6 +29,13 @@ import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.login.LoginException;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -116,7 +115,7 @@ class PKCS11ServiceTest {
         Files.writeString(config, "name = Existing");
         Provider originalProvider = Security.getProvider("SunPKCS11");
         ConfigurableProvider baseProvider = new ConfigurableProvider("ExistingConfiguredPKCS11");
-        Provider existingConfiguredProvider = new Provider("ExistingConfiguredPKCS11", 1.0, "existing") {
+        Provider existingConfiguredProvider = new Provider("ExistingConfiguredPKCS11", "1.0", "existing") {
         };
         Security.removeProvider("SunPKCS11");
         Security.removeProvider("ExistingConfiguredPKCS11");
@@ -747,21 +746,21 @@ class PKCS11ServiceTest {
         private boolean configured;
 
         ConfigurableProvider(String configuredProviderName) {
-            super("SunPKCS11", 1.0, "configurable stub");
+            super("SunPKCS11", "1.0", "configurable stub");
             this.configuredProviderName = configuredProviderName;
         }
 
         @Override
         public Provider configure(String configArg) {
             configured = true;
-            return new Provider(configuredProviderName, 1.0, "configured stub") {
+            return new Provider(configuredProviderName, "1.0", "configured stub") {
             };
         }
     }
 
     private static class FailingConfigurableProvider extends Provider {
         FailingConfigurableProvider() {
-            super("SunPKCS11", 1.0, "failing configurable stub");
+            super("SunPKCS11", "1.0", "failing configurable stub");
         }
 
         @Override
@@ -772,7 +771,7 @@ class PKCS11ServiceTest {
 
     private static class KeyStoreProvider extends Provider {
         KeyStoreProvider(boolean failOnLoad) {
-            super("KeyStoreProvider" + failOnLoad, 1.0, "keystore stub");
+            super("KeyStoreProvider" + failOnLoad, "1.0", "keystore stub");
             TestKeyStoreSpi.failOnLoad = failOnLoad;
             put("KeyStore.PKCS11", TestKeyStoreSpi.class.getName());
         }
@@ -868,7 +867,7 @@ class PKCS11ServiceTest {
         private boolean loggedOut;
 
         StubAuthProvider(boolean failOnLogout) {
-            super("StubAuthProvider", 1.0, "Stub auth provider");
+            super("StubAuthProvider", "1.0", "Stub auth provider");
             this.failOnLogout = failOnLogout;
         }
 

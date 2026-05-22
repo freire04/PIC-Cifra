@@ -26,6 +26,8 @@ public class AuditService {
     private final List<Log> logs = new ArrayList<>();
     private int nextLogId = 1;
 
+    public AuditService(){}
+
     public synchronized void log(Integer accountId,
                                  String username,
                                  Role actorRole,

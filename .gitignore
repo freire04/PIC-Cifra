@@ -5,3 +5,5 @@ out/
 
 # Coverage and test reports
 coverage/
+
+pkcs11.local.cfg
