@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.OperationResult;
+import pt.tecnico.pic.dto.AccountResult;
 import pt.tecnico.pic.dto.LogDTO;
 import pt.tecnico.pic.dto.LoginResult;
 import pt.tecnico.pic.service.AccountService;
@@ -92,5 +93,25 @@ class AppControllerTest {
         assertEquals(OperationResult.ERROR, result.getResult());
         assertEquals("Login failed.", result.getMessage());
         assertFalse(result.mustChangePassword());
+    }
+
+    @Test
+    void changeOwnPasswordShouldSucceedWithValidPlaceholderPasswords() {
+        AppController appController = new AppController();
+
+        AccountResult result = appController.changeOwnPassword("old".toCharArray(), "new".toCharArray());
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+        assertEquals("Password changed successfully.", result.getMessage());
+    }
+
+    @Test
+    void changeOwnPasswordShouldFailWhenNewPasswordEqualsOldPasswordPlaceholder() {
+        AppController appController = new AppController();
+
+        AccountResult result = appController.changeOwnPassword("same".toCharArray(), "same".toCharArray());
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+        assertEquals("New password cannot be the same as the old password.", result.getMessage());
     }
 }

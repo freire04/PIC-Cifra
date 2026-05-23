@@ -7,7 +7,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import pt.tecnico.pic.application.AppController;
 import pt.tecnico.pic.domain.OperationResult;
-import pt.tecnico.pic.dto.ChangePasswordResult;
+import pt.tecnico.pic.dto.AccountResult;
 import pt.tecnico.pic.presentation.SceneManager;
 
 public class ChangePasswordViewController {
@@ -46,7 +46,7 @@ public class ChangePasswordViewController {
                 return;
             }
 
-            ChangePasswordResult changePasswordResult = appController.changeOwnPassword(oldPassword, newPassword);
+            AccountResult changePasswordResult = appController.changeOwnPassword(oldPassword, newPassword);
 
             if (changePasswordResult.getResult() != OperationResult.SUCCESS) {
                 clearFields();
