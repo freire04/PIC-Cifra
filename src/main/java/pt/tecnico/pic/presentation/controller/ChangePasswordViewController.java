@@ -74,5 +74,6 @@ public class ChangePasswordViewController {
         newPasswordField.clear();
         confirmPasswordField.clear();
         errorLabel.setText("");
+        errorLabel.setStyle("");
     }
 }
