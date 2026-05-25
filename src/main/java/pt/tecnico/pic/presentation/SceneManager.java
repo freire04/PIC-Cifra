@@ -166,47 +166,17 @@ public class SceneManager {
     }
 
     public void showDashboard() {
-        DashboardViewController controller = new DashboardViewController(appController, this);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/DashboardView.fxml"));
+            DashboardViewController controller = new DashboardViewController(appController, this);
+            loader.setController(controller);
+            Parent root = loader.load();
 
-        Label title = new Label(selectedRole + " Dashboard");
+            setScene(root);
 
-        VBox actions = new VBox(12);
-        actions.setAlignment(Pos.CENTER);
-
-        if (selectedRole == Role.USER) {
-            Button encryptButton = new Button("Encrypt File");
-            encryptButton.setOnAction(event -> showEncryptionView());
-
-            Button decryptButton = new Button("Decrypt File");
-            decryptButton.setOnAction(event -> showDecryptionView());
-
-            actions.getChildren().addAll(encryptButton, decryptButton);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load DashboardView.fxml", e);
         }
-
-        if (selectedRole == Role.ADMIN) {
-            Button adminUsersButton = new Button("Manage Users");
-            adminUsersButton.setOnAction(event -> showAdminUsers());
-
-            actions.getChildren().add(adminUsersButton);
-        }
-
-        if (selectedRole == Role.AUDITOR) {
-            Button auditLogsButton = new Button("View Audit Logs");
-            auditLogsButton.setOnAction(event -> showAuditLogs());
-
-            actions.getChildren().add(auditLogsButton);
-        }
-
-        Button changeRoleButton = new Button("Change Role");
-        changeRoleButton.setOnAction(event -> showRoleSelection());
-
-        Button logoutButton = new Button("Logout");
-        logoutButton.setOnAction(event -> logout());
-
-        VBox root = new VBox(16, title, actions, changeRoleButton, logoutButton);
-        root.setAlignment(Pos.CENTER);
-
-        setScene(root);
     }
 
     public void showEncryptionView() {
@@ -352,6 +322,10 @@ public class SceneManager {
         Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
         primaryStage.setScene(scene);
         scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
+    }
+
+    public Role getSelectedRole() {
+        return selectedRole;
     }
 
 }
