@@ -186,4 +186,65 @@ class AccountStoreTest {
 
         assertEquals(11, store.getNextId());
     }
+
+    @Test
+    void corruptedJsonShouldThrowAccountStoreException() throws Exception {
+        Path accountsPath = tempDir.resolve("accounts.json");
+        Files.writeString(accountsPath, "{ invalid json");
+
+        AccountStore store = new AccountStore(accountsPath);
+
+        assertThrows(AccountStoreException.class, store::findAll);
+    }
+
+    @Test
+    void saveCreatesMissingParentDirectories() {
+        Path accountsPath = tempDir
+                .resolve("nested")
+                .resolve("data")
+                .resolve("accounts.json");
+
+        AccountStore store = new AccountStore(accountsPath);
+
+        store.save(new Account(
+                1,
+                "afonso",
+                "hash123",
+                Set.of(Role.USER),
+                true
+        ));
+
+        assertTrue(Files.exists(accountsPath));
+        assertTrue(Files.exists(accountsPath.getParent()));
+    }
+
+    @Test
+    void saveNullAccountThrowsException() {
+        Path accountsPath = tempDir.resolve("accounts.json");
+        AccountStore store = new AccountStore(accountsPath);
+
+        assertThrows(
+                NullPointerException.class,
+                () -> store.save(null)
+        );
+    }
+
+    @Test
+    void saveDoesNotLeaveTemporaryFileBehind() {
+        Path accountsPath = tempDir.resolve("accounts.json");
+        Path tempPath = tempDir.resolve("accounts.json.tmp");
+
+        AccountStore store = new AccountStore(accountsPath);
+
+        store.save(new Account(
+                1,
+                "afonso",
+                "hash123",
+                Set.of(Role.USER),
+                true
+        ));
+
+        assertTrue(Files.exists(accountsPath));
+        assertFalse(Files.exists(tempPath));
+    }
 }

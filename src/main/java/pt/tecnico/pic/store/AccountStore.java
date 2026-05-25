@@ -3,11 +3,13 @@ package pt.tecnico.pic.store;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+
 import pt.tecnico.pic.domain.Account;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -35,9 +37,7 @@ public class AccountStore {
     }
 
     public void save(Account account) {
-        if (account == null) {
-            throw new IllegalArgumentException("Account cannot be null");
-        }
+        Objects.requireNonNull(account, "account must not be null");
 
         List<Account> accounts = readAccounts();
 
@@ -71,7 +71,6 @@ public class AccountStore {
                 .findFirst();
     }
 
-
     public List<Account> findAll() {
         return new ArrayList<>(readAccounts());
     }
@@ -87,8 +86,7 @@ public class AccountStore {
                 .filter(account -> !account.isActive())
                 .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
     }
-
-    
+ 
     public int getNextId() {
         return readAccounts().stream()
                 .mapToInt(Account::getId)
@@ -123,7 +121,17 @@ public class AccountStore {
                 Files.createDirectories(parent);
             }
 
-            objectMapper.writeValue(accountsFilePath.toFile(), accounts);
+            Path tempFile = accountsFilePath.resolveSibling(accountsFilePath.getFileName() + ".tmp");
+
+            objectMapper.writeValue(tempFile.toFile(), accounts);
+
+            Files.move(
+                    tempFile,
+                    accountsFilePath,
+                    StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE
+            );
+
         } catch (IOException e) {
             throw new AccountStoreException("Failed to write accounts file", e);
         }
