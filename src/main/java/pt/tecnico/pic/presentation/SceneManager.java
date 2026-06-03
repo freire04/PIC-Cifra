@@ -2,9 +2,11 @@ package pt.tecnico.pic.presentation;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.Optional;
 
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -80,41 +82,20 @@ public class SceneManager {
     }
 
     public void showRoleSelection() {
-        RoleSelectionViewController controller = new RoleSelectionViewController(appController, this);
-        
-        Label title = new Label("Select Role");
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/RoleSelectionView.fxml"));
+            RoleSelectionViewController controller = new RoleSelectionViewController(appController, this);
+            loader.setController(controller);
+            Parent root = loader.load();
 
-        Button userButton = new Button("USER");
-        userButton.setOnAction(event -> {
-            selectedRole = Role.USER;
-            requestTokenPin();
-        });
+            setScene(root);
 
-        Button auditorButton = new Button("AUDITOR");
-        auditorButton.setOnAction(event -> {
-            selectedRole = Role.AUDITOR;
-            showDashboard();
-        });
-
-        Button adminButton = new Button("ADMIN");
-        adminButton.setOnAction(event -> {
-            selectedRole = Role.ADMIN;
-            showDashboard();
-        });
-
-        HBox roleButtons = new HBox(16, userButton, auditorButton, adminButton);
-        roleButtons.setAlignment(Pos.CENTER);
-
-        Button logoutButton = new Button("Logout");
-        logoutButton.setOnAction(event -> logout());
-
-        VBox root = new VBox(20, title, roleButtons, logoutButton);
-        root.setAlignment(Pos.CENTER);
-
-        setScene(root);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load RoleSelectionView.fxml", e);
+        }
     }
 
-    public void requestTokenPin() {
+    public Optional<char[]> requestTokenPin() {
         Dialog<String> pinDialog = new Dialog<>();
 
         pinDialog.setTitle("Token PIN");
@@ -130,14 +111,24 @@ public class SceneManager {
             }
         });
 
-        pinDialog.getDialogPane().setContent(pinField);
+        Label hintLabel = new Label("Hint: Use 123456 for testing");
+        hintLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
 
-        ButtonType confirmButton =
-                new ButtonType("Confirm", ButtonBar.ButtonData.OK_DONE);
+        VBox content = new VBox(6, hintLabel, pinField);
+        content.setAlignment(Pos.CENTER);
 
-        pinDialog.getDialogPane()
-                .getButtonTypes()
-                .addAll(confirmButton, ButtonType.CANCEL);
+        pinDialog.getDialogPane().setContent(content);
+
+        ButtonType confirmButton = new ButtonType("Confirm", ButtonBar.ButtonData.OK_DONE);
+
+        pinDialog.getDialogPane().getButtonTypes().setAll(confirmButton, ButtonType.CANCEL);
+
+        Node confirmButtonNode = pinDialog.getDialogPane().lookupButton(confirmButton);
+        confirmButtonNode.setDisable(true);
+
+        pinField.textProperty().addListener((observable, oldValue, newValue) -> {
+            confirmButtonNode.setDisable(!newValue.matches("\\d{6}"));
+        });
 
         pinDialog.setResultConverter(button -> {
             if (button == confirmButton) {
@@ -146,7 +137,7 @@ public class SceneManager {
             return null;
         });
 
-        pinDialog.showAndWait().ifPresent(pin -> showDashboard());
+        return pinDialog.showAndWait().map(String::toCharArray);
     }
 
     public void showDashboard() {
@@ -336,6 +327,10 @@ public class SceneManager {
         Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
         primaryStage.setScene(scene);
         scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
+    }
+
+    public void setSelectedRole(Role selectedRole) {
+        this.selectedRole = selectedRole;
     }
 
 }

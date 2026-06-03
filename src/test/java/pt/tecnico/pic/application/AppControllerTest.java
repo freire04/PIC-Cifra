@@ -10,9 +10,11 @@ import org.junit.jupiter.api.Test;
 
 import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.OperationResult;
+import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.dto.AccountResult;
 import pt.tecnico.pic.dto.LogDTO;
 import pt.tecnico.pic.dto.LoginResult;
+import pt.tecnico.pic.dto.RoleSelectionResult;
 import pt.tecnico.pic.service.AccountService;
 import pt.tecnico.pic.service.AuditService;
 import pt.tecnico.pic.service.FileCryptoService;
@@ -114,4 +116,16 @@ class AppControllerTest {
         assertEquals(OperationResult.FAILED, result.getResult());
         assertEquals("New password cannot be the same as the old password.", result.getMessage());
     }
+
+    @Test
+    void selectRoleShouldSucceedPlaceholder() {
+        AppController appController = new AppController();
+
+        RoleSelectionResult result =
+                appController.selectRole(Role.ADMIN, null);
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+        assertEquals(Role.ADMIN, result.getSelectedRole());
+    }
+
 }
