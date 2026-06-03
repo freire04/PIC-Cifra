@@ -66,33 +66,17 @@ public class SceneManager {
     }
 
     public void showChangePassword() {
-        ChangePasswordViewController controller = new ChangePasswordViewController(appController, this);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/ChangePasswordView.fxml"));
+            ChangePasswordViewController controller = new ChangePasswordViewController(appController, this);
+            loader.setController(controller);
+            Parent root = loader.load();
 
-        Label title = new Label("Change Password");
+            setScene(root);
 
-        PasswordField oldPasswordField = new PasswordField();
-        oldPasswordField.setPromptText("Current password");
-        oldPasswordField.setMaxWidth(240);
-
-        PasswordField newPasswordField = new PasswordField();
-        newPasswordField.setPromptText("New password");
-        newPasswordField.setMaxWidth(240);
-
-        PasswordField confirmPasswordField = new PasswordField();
-        confirmPasswordField.setPromptText("Confirm new password");
-        confirmPasswordField.setMaxWidth(240);
-
-        Button confirmButton = new Button("Change Password");
-        confirmButton.setOnAction(event -> showRoleSelection());
-
-        Button cancelButton = new Button("Back");
-        cancelButton.setOnAction(event -> logout());
-
-        VBox root = new VBox(12, title, oldPasswordField, newPasswordField,
-                confirmPasswordField, confirmButton, cancelButton);
-        root.setAlignment(Pos.CENTER);
-
-        setScene(root);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load ChangePasswordView.fxml", e);
+        }
     }
 
     public void showRoleSelection() {

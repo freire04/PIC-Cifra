@@ -6,6 +6,7 @@ import java.util.Set;
 
 import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.OperationResult;
+import pt.tecnico.pic.dto.AccountResult;
 import pt.tecnico.pic.dto.LoginResult;
 import pt.tecnico.pic.service.AccountService;
 import pt.tecnico.pic.service.AuditService;
@@ -78,6 +79,23 @@ public class AppController {
                 Set.of(),
                 false
         );
+    }
+
+    public AccountResult changeOwnPassword(char[] oldPassword, char[] newPassword) {
+        // TODO: delegate to AccountService.changePassword(...) or similar when implemented.
+
+        // Placeholder for successful password change
+        if (Arrays.equals(oldPassword, "old".toCharArray()) && Arrays.equals(newPassword, "new".toCharArray())) {
+            return new AccountResult(OperationResult.SUCCESS, "Password changed successfully.");
+        }
+
+        // Placeholder for new password equal to old password
+        if (Arrays.equals(oldPassword, newPassword) && oldPassword.length > 0) {
+            return new AccountResult(OperationResult.FAILED, "New password cannot be the same as the old password.");
+        }
+
+        // Placeholder for failed password change
+        return new AccountResult(OperationResult.ERROR, "Password change failed.");
     }
 
     public void recordLogin(Integer accountId, String username, OperationResult result, String message) {
