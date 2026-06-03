@@ -56,7 +56,6 @@ public class ChangePasswordViewController {
 
             clearFields();
             sceneManager.showRoleSelection();
-   
         } finally {
             Arrays.fill(oldPassword, '\0');
             Arrays.fill(newPassword, '\0');
