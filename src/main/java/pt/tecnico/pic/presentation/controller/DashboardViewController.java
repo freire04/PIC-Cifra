@@ -44,6 +44,10 @@ public class DashboardViewController {
             addActionButton("Decrypt File", this::onDecryptSelected);
         }
 
+        if (selectedRole == Role.AUDITOR) {
+            // TODO: Currently empty - no actions defined for auditor role yet
+        }
+
         if (selectedRole == Role.ADMIN) {
             addActionButton("Manage Users", this::onAdminUsersSelected);
         }
