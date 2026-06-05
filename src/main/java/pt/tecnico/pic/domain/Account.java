@@ -1,5 +1,8 @@
 package pt.tecnico.pic.domain;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
@@ -14,12 +17,24 @@ public class Account {
     private boolean mustChangePassword;
 
     public Account(int id, String username, String passwordHash, Set<Role> roles, boolean active) {
+        this(id, username, passwordHash, roles, active, true);
+    }
+
+    @JsonCreator
+    public Account(
+            @JsonProperty("id") int id,
+            @JsonProperty("username") String username,
+            @JsonProperty("passwordHash") String passwordHash,
+            @JsonProperty("roles") Set<Role> roles,
+            @JsonProperty("active") boolean active,
+            @JsonProperty("mustChangePassword") boolean mustChangePassword
+    ) {
         this.id = id;
-        this.username = username;
-        this.passwordHash = passwordHash;
+        this.username = Objects.requireNonNull(username);
+        this.passwordHash = Objects.requireNonNull(passwordHash);
         this.roles = copyValidatedRoles(roles);
         this.active = active;
-        this.mustChangePassword = true;
+        this.mustChangePassword = mustChangePassword;
     }
 
     public int getId() {
@@ -42,6 +57,7 @@ public class Account {
         return active;
     }
 
+    @JsonProperty("mustChangePassword")
     public boolean mustChangePassword() {
         return mustChangePassword;
     }
@@ -51,7 +67,7 @@ public class Account {
     }
 
     public void addRole(Role role) {
-        this.roles.add(role);
+        this.roles.add(Objects.requireNonNull(role));
     }
 
     public void removeRole(Role role) {
@@ -67,14 +83,19 @@ public class Account {
     }
 
     public void changePassword(String newPasswordHash) {
-        this.passwordHash = newPasswordHash;
+        this.passwordHash = Objects.requireNonNull(newPasswordHash);
         this.mustChangePassword = false;
+    }
+
+    public void resetPassword(String temporaryPasswordHash) {
+        this.passwordHash = Objects.requireNonNull(temporaryPasswordHash, "temporaryPasswordHash must not be null");
+        this.mustChangePassword = true;
     }
 
     /**
      * Creates a defensive mutable copy of roles after validating that the set
      * and all of its elements are non-null.
-     */
+     */ 
     private static Set<Role> copyValidatedRoles(Set<Role> roles) {
         Objects.requireNonNull(roles);
         for (Role role : roles) {

@@ -1,80 +1,139 @@
 package pt.tecnico.pic.store;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import pt.tecnico.pic.domain.Account;
 
-/**
- * Minimal in-memory AccountStore used by the current codebase until the JSON
- * persistence issue is merged. It keeps disabled accounts too, so usernames are
- * globally unique and cannot be reused after deactivation.
- */
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
 public class AccountStore {
-    private final Map<Integer, Account> accountsById = new HashMap<>();
-    private final Map<String, Integer> accountIdsByUsername = new HashMap<>();
+    private final Path accountsFilePath;
+    private final ObjectMapper objectMapper;
 
     public AccountStore() {
+        this("data/accounts.json");
     }
 
-    public synchronized void save(Account account) {
+    public AccountStore(String accountsFilePath) {
+        this(Path.of(accountsFilePath));
+    }
+    
+    public AccountStore(Path accountsFilePath) {
+        this.accountsFilePath = Objects.requireNonNull(
+                accountsFilePath,
+                "accountsFilePath must not be null"
+        );
+        this.objectMapper = new ObjectMapper()
+                .enable(SerializationFeature.INDENT_OUTPUT);
+    }
+
+    public void save(Account account) {
         Objects.requireNonNull(account, "account must not be null");
 
-        Account existingAccount = accountsById.get(account.getId());
-        if (existingAccount != null && !existingAccount.getUsername().equals(account.getUsername())) {
-            throw new IllegalArgumentException("Username is immutable.");
+        List<Account> accounts = readAccounts();
+
+        for (int i = 0; i < accounts.size(); i++) {
+            Account current = accounts.get(i);
+
+            if (current.getId() == account.getId()) {
+                accounts.set(i, account);
+                writeAccounts(accounts);
+                return;
+            }
         }
 
-        Integer existingIdForUsername = accountIdsByUsername.get(account.getUsername());
-        if (existingIdForUsername != null && existingIdForUsername != account.getId()) {
-            throw new IllegalArgumentException("Username already exists.");
+        accounts.add(account);
+        writeAccounts(accounts);
+    }
+
+    public Optional<Account> findByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return Optional.empty();
         }
 
-        accountsById.put(account.getId(), account);
-        accountIdsByUsername.put(account.getUsername(), account.getId());
+        return readAccounts().stream()
+                .filter(account -> username.equals(account.getUsername()))
+                .findFirst();
     }
 
-    public synchronized Account findByUsername(String username) {
-        if (username == null) {
-            return null;
-        }
-
-        Integer accountId = accountIdsByUsername.get(username.trim().toLowerCase());
-        if (accountId == null) {
-            return null;
-        }
-
-        return accountsById.get(accountId);
+    public Optional<Account> findById(int accountId) {
+        return readAccounts().stream()
+                .filter(account -> account.getId() == accountId)
+                .findFirst();
     }
 
-    public synchronized Account findById(int accountId) {
-        return accountsById.get(accountId);
+    public List<Account> findAll() {
+        return new ArrayList<>(readAccounts());
     }
 
-    public synchronized List<Account> findAll() {
-        return accountsById.values()
-                .stream()
-                .sorted(Comparator.comparingInt(Account::getId))
-                .toList();
-    }
-
-    public synchronized List<Account> findActive() {
-        return accountsById.values()
-                .stream()
+    public List<Account> findActive() {
+        return readAccounts().stream()
                 .filter(Account::isActive)
-                .sorted(Comparator.comparingInt(Account::getId))
-                .toList();
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
     }
 
-    public synchronized List<Account> findDisabled() {
-        return accountsById.values()
-                .stream()
+    public List<Account> findDisabled() {
+        return readAccounts().stream()
                 .filter(account -> !account.isActive())
-                .sorted(Comparator.comparingInt(Account::getId))
-                .toList();
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+    }
+ 
+    public int getNextId() {
+        return readAccounts().stream()
+                .mapToInt(Account::getId)
+                .max()
+                .orElse(0) + 1;
+    }
+
+    private List<Account> readAccounts() {
+        try {
+            if (!Files.exists(accountsFilePath)) {
+                return new ArrayList<>();
+            }
+
+            if (Files.size(accountsFilePath) == 0) {
+                return new ArrayList<>();
+            }
+
+            return objectMapper.readValue(
+                    accountsFilePath.toFile(),
+                    new TypeReference<List<Account>>() {}
+            );
+        } catch (IOException e) {
+            throw new AccountStoreException("Failed to read accounts file", e);
+        }
+    }
+
+    private void writeAccounts(List<Account> accounts) {
+        try {
+            Path parent = accountsFilePath.getParent();
+
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+
+            Path tempFile = accountsFilePath.resolveSibling(accountsFilePath.getFileName() + ".tmp");
+
+            objectMapper.writeValue(tempFile.toFile(), accounts);
+
+            Files.move(
+                    tempFile,
+                    accountsFilePath,
+                    StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE
+            );
+
+        } catch (IOException e) {
+            throw new AccountStoreException("Failed to write accounts file", e);
+        }
     }
 }

@@ -6,7 +6,10 @@ import java.util.Set;
 
 import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.OperationResult;
+import pt.tecnico.pic.domain.Role;
+import pt.tecnico.pic.dto.AccountResult;
 import pt.tecnico.pic.dto.LoginResult;
+import pt.tecnico.pic.dto.RoleSelectionResult;
 import pt.tecnico.pic.service.AccountService;
 import pt.tecnico.pic.service.AuditService;
 import pt.tecnico.pic.service.FileCryptoService;
@@ -80,8 +83,52 @@ public class AppController {
         );
     }
 
+    public AccountResult changeOwnPassword(char[] oldPassword, char[] newPassword) {
+        // TODO: delegate to AccountService.changePassword(...) or similar when implemented.
+
+        // Placeholder for successful password change
+        if (Arrays.equals(oldPassword, "old".toCharArray()) && Arrays.equals(newPassword, "new".toCharArray())) {
+            return new AccountResult(OperationResult.SUCCESS, "Password changed successfully.");
+        }
+
+        // Placeholder for new password equal to old password
+        if (Arrays.equals(oldPassword, newPassword) && oldPassword.length > 0) {
+            return new AccountResult(OperationResult.FAILED, "New password cannot be the same as the old password.");
+        }
+
+        // Placeholder for failed password change
+        return new AccountResult(OperationResult.ERROR, "Password change failed.");
+    }
+
     public void recordLogin(Integer accountId, String username, OperationResult result, String message) {
         auditService.log(accountId, username, null, ActionType.LOGIN, null, result, message);
+    }
+
+    public RoleSelectionResult selectRole(Role role, char[] pin) {
+        // TODO (S1-10): delegate to AccountService.selectRole(...) when role management is implemented.
+
+        if (role == Role.USER) {
+            if (!Arrays.equals(pin, "123456".toCharArray())) {
+                return new RoleSelectionResult(
+                        OperationResult.FAILED,
+                        "Wrong PIN provided.",
+                        null,
+                        false
+                );
+            }
+        }
+
+        return new RoleSelectionResult(
+                OperationResult.SUCCESS,
+                "Role selected successfully.",
+                role,
+                role == Role.USER
+        );
+    }
+
+    public Set<Role> getAvailableRoles() {
+        // TODO (S1-10): delegate to AccountService.getRoles(...) when role management is implemented.
+        return Set.of(Role.USER, Role.AUDITOR, Role.ADMIN);
     }
 
     public AuditService getAuditService() {

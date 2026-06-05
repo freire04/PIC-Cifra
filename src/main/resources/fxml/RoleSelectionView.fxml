@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      spacing="20"
+      alignment="CENTER">
+
+    <Label text="Select Role"/>
+
+    <HBox fx:id="rolesContainer"
+          spacing="16"
+          alignment="CENTER"/>
+
+    <Label fx:id="errorLabel"
+            text=""
+            maxWidth="240"/>
+
+    <Button text="Logout"
+            onAction="#onLogoutClicked"/>
+
+</VBox>

@@ -12,14 +12,6 @@ import pt.tecnico.pic.dto.AccountResult;
 import pt.tecnico.pic.dto.PasswordResult;
 import pt.tecnico.pic.store.AccountStore;
 
-/**
- * Service responsible for authentication and explicit account-management
- * operations. Roles are independent; this service only stores roles on the
- * account and does not apply any role hierarchy.
- *
- * This service depends on PasswordService for password hashing/verification and
- * on AccountStore for persistence. It never stores plain-text passwords.
- */
 public class AccountService {
     private final AccountStore accountStore;
     private final PasswordService passwordService;
@@ -36,8 +28,8 @@ public class AccountService {
     public Account authenticate(String username, char[] password) {
         try {
             String normalizedUsername = normalizeUsername(username);
-            Account account = accountStore.findByUsername(normalizedUsername);
 
+            Account account = accountStore.findByUsername(normalizedUsername).orElse(null);
             if (account == null || !account.isActive()) {
                 return null;
             }
@@ -61,7 +53,7 @@ public class AccountService {
             String normalizedUsername = normalizeUsername(username);
             Set<Role> safeRoles = validateRoles(roles);
 
-            if (accountStore.findByUsername(normalizedUsername) != null) {
+            if (accountStore.findByUsername(normalizedUsername).isPresent()) {
                 return new AccountCreationResult(
                         OperationResult.FAILED,
                         -1,
@@ -73,7 +65,8 @@ public class AccountService {
 
             temporaryPassword = passwordService.generateTemporaryPassword();
             String passwordHash = passwordService.hashPassword(temporaryPassword);
-            int accountId = nextAccountId();
+
+            int accountId = accountStore.getNextId();
 
             Account account = new Account(accountId, normalizedUsername, passwordHash, safeRoles, true);
             accountStore.save(account);
@@ -95,7 +88,7 @@ public class AccountService {
     }
 
     public Account getAccountById(int accountId) {
-        return accountStore.findById(accountId);
+        return accountStore.findById(accountId).orElse(null);
     }
 
     public List<Account> listAccounts() {
@@ -104,13 +97,14 @@ public class AccountService {
 
     public synchronized AccountResult updateRoles(int accountId, Set<Role> roles) {
         try {
-            Account account = accountStore.findById(accountId);
+            Account account = accountStore.findById(accountId).orElse(null);
             if (account == null) {
                 return new AccountResult(OperationResult.FAILED, "Account not found.");
             }
 
             account.setRoles(validateRoles(roles));
             accountStore.save(account);
+
             return new AccountResult(OperationResult.SUCCESS, "Roles updated successfully.");
         } catch (IllegalArgumentException e) {
             return new AccountResult(OperationResult.FAILED, e.getMessage());
@@ -121,7 +115,7 @@ public class AccountService {
 
     public synchronized PasswordResult changePassword(int accountId, char[] oldPassword, char[] newPassword) {
         try {
-            Account account = accountStore.findById(accountId);
+            Account account = accountStore.findById(accountId).orElse(null);
             if (account == null) {
                 return new PasswordResult(OperationResult.FAILED, "Account not found.", null);
             }
@@ -135,6 +129,7 @@ public class AccountService {
             }
 
             requirePassword(newPassword);
+
             String newPasswordHash = passwordService.hashPassword(newPassword);
             account.changePassword(newPasswordHash);
             accountStore.save(account);
@@ -154,7 +149,7 @@ public class AccountService {
         char[] temporaryPassword = null;
 
         try {
-            Account account = accountStore.findById(accountId);
+            Account account = accountStore.findById(accountId).orElse(null);
             if (account == null) {
                 return new PasswordResult(OperationResult.FAILED, "Account not found.", null);
             }
@@ -162,19 +157,8 @@ public class AccountService {
             temporaryPassword = passwordService.generateTemporaryPassword();
             String passwordHash = passwordService.hashPassword(temporaryPassword);
 
-            /*
-             * Account has no public setter to set mustChangePassword back to true.
-             * Creating a replacement Account preserves username, id, roles and active
-             * state while setting mustChangePassword=true through the constructor.
-             */
-            Account replacement = new Account(
-                    account.getId(),
-                    account.getUsername(),
-                    passwordHash,
-                    account.getRoles(),
-                    account.isActive()
-            );
-            accountStore.save(replacement);
+            account.resetPassword(passwordHash);
+            accountStore.save(account);
 
             return new PasswordResult(
                     OperationResult.SUCCESS,
@@ -188,23 +172,16 @@ public class AccountService {
         }
     }
 
-    /**
-     * Account deletion is intentionally not implemented as a destructive delete.
-     * Usernames must never be reused, so this operation disables the account.
-     */
-    public AccountResult deleteAccount(int accountId) {
-        return disableAccount(accountId);
-    }
-
     public synchronized AccountResult disableAccount(int accountId) {
         try {
-            Account account = accountStore.findById(accountId);
+            Account account = accountStore.findById(accountId).orElse(null);
             if (account == null) {
                 return new AccountResult(OperationResult.FAILED, "Account not found.");
             }
 
             account.deactivate();
             accountStore.save(account);
+
             return new AccountResult(OperationResult.SUCCESS, "Account disabled successfully.");
         } catch (RuntimeException e) {
             return new AccountResult(OperationResult.ERROR, "Could not disable account.");
@@ -213,31 +190,25 @@ public class AccountService {
 
     public synchronized AccountResult enableAccount(int accountId) {
         try {
-            Account account = accountStore.findById(accountId);
+            Account account = accountStore.findById(accountId).orElse(null);
             if (account == null) {
                 return new AccountResult(OperationResult.FAILED, "Account not found.");
             }
 
             account.activate();
             accountStore.save(account);
+
             return new AccountResult(OperationResult.SUCCESS, "Account enabled successfully.");
         } catch (RuntimeException e) {
             return new AccountResult(OperationResult.ERROR, "Could not enable account.");
         }
     }
 
-    private int nextAccountId() {
-        return accountStore.findAll()
-                .stream()
-                .mapToInt(Account::getId)
-                .max()
-                .orElse(0) + 1;
-    }
-
     private static String normalizeUsername(String username) {
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username must not be empty.");
         }
+
         return username.trim().toLowerCase();
     }
 
