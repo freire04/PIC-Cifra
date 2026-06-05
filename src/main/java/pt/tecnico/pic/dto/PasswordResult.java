@@ -9,8 +9,10 @@ public class PasswordResult {
 
     public PasswordResult(OperationResult result, String message, char[] temporaryPassword) {
         this.result = result;
-        this.temporaryPassword = temporaryPassword;
         this.message = message;
+        this.temporaryPassword = temporaryPassword == null
+                ? null
+                : java.util.Arrays.copyOf(temporaryPassword, temporaryPassword.length);
     }
 
     public OperationResult getResult() {

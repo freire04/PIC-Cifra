@@ -1,5 +1,7 @@
 package pt.tecnico.pic.dto;
 
+import java.util.Arrays;
+
 import pt.tecnico.pic.domain.OperationResult;
 
 public class AccountCreationResult {
@@ -13,7 +15,9 @@ public class AccountCreationResult {
         this.result = result;
         this.accountId = accountId;
         this.username = username;
-        this.temporaryPassword = temporaryPassword;
+        this.temporaryPassword = temporaryPassword == null
+                ? null
+                : Arrays.copyOf(temporaryPassword, temporaryPassword.length);
         this.message = message;
     }
 
