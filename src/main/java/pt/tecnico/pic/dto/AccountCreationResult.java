@@ -6,10 +6,10 @@ public class AccountCreationResult {
     private final OperationResult result;
     private final int accountId;
     private final String username;
-    private final String temporaryPassword;
+    private final char[] temporaryPassword;
     private final String message;
 
-    public AccountCreationResult(OperationResult result, int accountId, String username, String temporaryPassword, String message) {
+    public AccountCreationResult(OperationResult result, int accountId, String username, char[] temporaryPassword, String message) {
         this.result = result;
         this.accountId = accountId;
         this.username = username;
@@ -29,7 +29,7 @@ public class AccountCreationResult {
         return username;
     }
 
-    public String getTemporaryPassword() {
+    public char[] getTemporaryPassword() {
         return temporaryPassword;
     }
 

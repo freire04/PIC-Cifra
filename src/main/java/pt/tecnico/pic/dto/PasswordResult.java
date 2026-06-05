@@ -4,10 +4,10 @@ import pt.tecnico.pic.domain.OperationResult;
 
 public class PasswordResult {
     private final OperationResult result;
-    private final String temporaryPassword;
+    private final char[] temporaryPassword;
     private final String message;
 
-    public PasswordResult(OperationResult result, String message, String temporaryPassword) {
+    public PasswordResult(OperationResult result, String message, char[] temporaryPassword) {
         this.result = result;
         this.temporaryPassword = temporaryPassword;
         this.message = message;
@@ -17,7 +17,7 @@ public class PasswordResult {
         return result;
     }
 
-    public String getTemporaryPassword() {
+    public char[] getTemporaryPassword() {
         return temporaryPassword;
     }
 

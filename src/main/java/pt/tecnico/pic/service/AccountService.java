@@ -77,7 +77,7 @@ public class AccountService {
                     OperationResult.SUCCESS,
                     accountId,
                     normalizedUsername,
-                    new String(temporaryPassword),
+                    temporaryPassword,
                     "Account created successfully."
             );
 
@@ -173,7 +173,7 @@ public class AccountService {
             return new PasswordResult(
                     OperationResult.SUCCESS,
                     "Password reset successfully.",
-                    new String(temporaryPassword)
+                    temporaryPassword
             );
 
         } catch (RuntimeException e) {

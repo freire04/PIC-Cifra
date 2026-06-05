@@ -1,17 +1,16 @@
 package pt.tecnico.pic.service;
 
 
+import java.nio.file.Path;
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.io.TempDir;
-
-import java.util.Set;
-import java.nio.file.Path;
-
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import pt.tecnico.pic.domain.Account;
 import pt.tecnico.pic.domain.OperationResult;
@@ -54,7 +53,7 @@ class AccountServiceTest {
         assertNotNull(account);
         assertTrue(account.isActive());
         assertTrue(account.mustChangePassword());
-        assertFalse(account.getPasswordHash().contains(result.getTemporaryPassword()));
+        assertFalse(account.getPasswordHash().contains(new String(result.getTemporaryPassword())));
     }
 
     @Test
@@ -62,7 +61,7 @@ class AccountServiceTest {
         AccountService accountService = newAccountService();
 
         AccountCreationResult created = accountService.createAccount("bob", Set.of(Role.USER));
-        Account authenticated = accountService.authenticate("bob", created.getTemporaryPassword().toCharArray());
+        Account authenticated = accountService.authenticate("bob", created.getTemporaryPassword());
 
         assertNotNull(authenticated);
         assertEquals("bob", authenticated.getUsername());
@@ -86,7 +85,7 @@ class AccountServiceTest {
         AccountCreationResult created = accountService.createAccount("bob", Set.of(Role.USER));
         accountService.disableAccount(created.getAccountId());
 
-        Account authenticated = accountService.authenticate("bob", created.getTemporaryPassword().toCharArray());
+        Account authenticated = accountService.authenticate("bob", created.getTemporaryPassword());
 
         assertNull(authenticated);
     }
@@ -132,7 +131,7 @@ class AccountServiceTest {
 
         PasswordResult correct = accountService.changePassword(
                 created.getAccountId(),
-                created.getTemporaryPassword().toCharArray(),
+                created.getTemporaryPassword(),
                 "NewPassword123!".toCharArray()
         );
 
@@ -151,7 +150,7 @@ class AccountServiceTest {
 
         accountService.changePassword(
                 created.getAccountId(),
-                created.getTemporaryPassword().toCharArray(),
+                created.getTemporaryPassword(),
                 "NormalPassword123!".toCharArray()
         );
 
@@ -161,7 +160,7 @@ class AccountServiceTest {
         assertEquals(OperationResult.SUCCESS, reset.getResult());
         assertNotNull(reset.getTemporaryPassword());
         assertTrue(account.mustChangePassword());
-        assertNotNull(accountService.authenticate("erin", reset.getTemporaryPassword().toCharArray()));
+        assertNotNull(accountService.authenticate("erin", reset.getTemporaryPassword()));
     }
 
     @Test
