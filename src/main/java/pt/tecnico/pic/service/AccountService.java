@@ -171,10 +171,11 @@ public class AccountService {
             account.resetPassword(passwordHash);
             accountStore.save(account);
 
+            char[] temporaryPasswordForReturn = java.util.Arrays.copyOf(temporaryPassword, temporaryPassword.length);
             return new PasswordResult(
                     OperationResult.SUCCESS,
                     "Password reset successfully.",
-                    temporaryPassword
+                    temporaryPasswordForReturn
             );
 
         } catch (RuntimeException e) {
