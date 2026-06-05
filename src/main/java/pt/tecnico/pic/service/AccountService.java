@@ -223,7 +223,7 @@ public class AccountService {
             throw new IllegalArgumentException("Username must not be empty.");
         }
 
-        return username.trim().toLowerCase();
+        return username.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     private static Set<Role> validateRoles(Set<Role> roles) {
