@@ -30,7 +30,7 @@ public class AccountCreationResult {
     }
 
     public char[] getTemporaryPassword() {
-        return temporaryPassword;
+        return temporaryPassword == null ? null : java.util.Arrays.copyOf(temporaryPassword, temporaryPassword.length);
     }
 
     public String getMessage() {
