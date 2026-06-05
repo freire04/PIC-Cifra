@@ -39,8 +39,10 @@ public class AccountService {
             }
 
             return account;
+
         } catch (IllegalArgumentException e) {
             return null;
+
         } finally {
             passwordService.clear(password);
         }
@@ -78,10 +80,13 @@ public class AccountService {
                     new String(temporaryPassword),
                     "Account created successfully."
             );
+
         } catch (IllegalArgumentException e) {
             return new AccountCreationResult(OperationResult.FAILED, -1, username, null, e.getMessage());
+
         } catch (RuntimeException e) {
             return new AccountCreationResult(OperationResult.ERROR, -1, username, null, "Could not create account.");
+
         } finally {
             passwordService.clear(temporaryPassword);
         }
@@ -106,8 +111,10 @@ public class AccountService {
             accountStore.save(account);
 
             return new AccountResult(OperationResult.SUCCESS, "Roles updated successfully.");
+
         } catch (IllegalArgumentException e) {
             return new AccountResult(OperationResult.FAILED, e.getMessage());
+
         } catch (RuntimeException e) {
             return new AccountResult(OperationResult.ERROR, "Could not update roles.");
         }
@@ -135,10 +142,13 @@ public class AccountService {
             accountStore.save(account);
 
             return new PasswordResult(OperationResult.SUCCESS, "Password changed successfully.", null);
+
         } catch (IllegalArgumentException e) {
             return new PasswordResult(OperationResult.FAILED, e.getMessage(), null);
+
         } catch (RuntimeException e) {
             return new PasswordResult(OperationResult.ERROR, "Could not change password.", null);
+
         } finally {
             passwordService.clear(oldPassword);
             passwordService.clear(newPassword);
@@ -165,8 +175,10 @@ public class AccountService {
                     "Password reset successfully.",
                     new String(temporaryPassword)
             );
+
         } catch (RuntimeException e) {
             return new PasswordResult(OperationResult.ERROR, "Could not reset password.", null);
+
         } finally {
             passwordService.clear(temporaryPassword);
         }
@@ -183,6 +195,7 @@ public class AccountService {
             accountStore.save(account);
 
             return new AccountResult(OperationResult.SUCCESS, "Account disabled successfully.");
+
         } catch (RuntimeException e) {
             return new AccountResult(OperationResult.ERROR, "Could not disable account.");
         }
@@ -199,6 +212,7 @@ public class AccountService {
             accountStore.save(account);
 
             return new AccountResult(OperationResult.SUCCESS, "Account enabled successfully.");
+
         } catch (RuntimeException e) {
             return new AccountResult(OperationResult.ERROR, "Could not enable account.");
         }
