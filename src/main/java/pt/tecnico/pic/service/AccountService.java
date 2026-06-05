@@ -73,11 +73,12 @@ public class AccountService {
             Account account = new Account(accountId, normalizedUsername, passwordHash, safeRoles, true);
             accountStore.save(account);
 
+            char[] temporaryPasswordForReturn = java.util.Arrays.copyOf(temporaryPassword, temporaryPassword.length);
             return new AccountCreationResult(
                     OperationResult.SUCCESS,
                     accountId,
                     normalizedUsername,
-                    temporaryPassword,
+                    temporaryPasswordForReturn,
                     "Account created successfully."
             );
 
