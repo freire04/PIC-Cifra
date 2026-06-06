@@ -32,39 +32,6 @@ class AppControllerTest {
     @TempDir
     Path tempDir;
 
-    private AppController newController() {
-        AuditService auditService = new AuditService();
-        AccountService accountService = new AccountService(
-                new AccountStore(tempDir.resolve("accounts.json")),
-                new PasswordService()
-        );
-        FileCryptoService fileCryptoService = new FileCryptoService(auditService);
-
-        return new AppController(accountService, auditService, fileCryptoService);
-    }
-
-    private AccountCreationResult createAccount(AppController controller, String username, Set<Role> roles) {
-        LoginResult adminLogin = controller.login("admin", "AdminPassword123!".toCharArray());
-
-        if (adminLogin.getResult() != OperationResult.SUCCESS) {
-            AccountService accountService = new AccountService(
-                    new AccountStore(tempDir.resolve("accounts.json")),
-                    new PasswordService()
-            );
-            accountService.createAccount("admin", Set.of(Role.ADMIN));
-        }
-
-        return controller.createAccount(new CreateAccountRequest(username, roles));
-    }
-
-    private AccountCreationResult createAccountDirectly(
-            AccountService accountService,
-            String username,
-            Set<Role> roles
-    ) {
-        return accountService.createAccount(username, roles);
-    }
-
     private TestFixture newFixture() {
         AuditService auditService = new AuditService();
         AccountStore accountStore = new AccountStore(tempDir.resolve("accounts.json"));
@@ -79,11 +46,7 @@ class AppControllerTest {
     @Test
     void loginShouldCreateSessionWithAvailableRoles() {
         TestFixture fixture = newFixture();
-        AccountCreationResult created = createAccountDirectly(
-                fixture.accountService,
-                "user",
-                Set.of(Role.USER)
-        );
+        AccountCreationResult created = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
         LoginResult login = fixture.controller.login(
                 "user",
@@ -99,7 +62,7 @@ class AppControllerTest {
     @Test
     void loginShouldFailWithWrongPassword() {
         TestFixture fixture = newFixture();
-        createAccountDirectly(fixture.accountService, "user", Set.of(Role.USER));
+        fixture.accountService.createAccount("user", Set.of(Role.USER));
 
         LoginResult login = fixture.controller.login("user", "wrong".toCharArray());
 
@@ -109,11 +72,7 @@ class AppControllerTest {
     @Test
     void mustChangePasswordShouldBlockRoleSelectionUntilPasswordIsChanged() {
         TestFixture fixture = newFixture();
-        AccountCreationResult created = createAccountDirectly(
-                fixture.accountService,
-                "user",
-                Set.of(Role.USER)
-        );
+        AccountCreationResult created = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
         fixture.controller.login("user", created.getTemporaryPassword());
 
@@ -135,11 +94,7 @@ class AppControllerTest {
     @Test
     void selectRoleShouldRejectUnavailableRole() {
         TestFixture fixture = newFixture();
-        AccountCreationResult created = createAccountDirectly(
-                fixture.accountService,
-                "user",
-                Set.of(Role.USER)
-        );
+        AccountCreationResult created = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
         fixture.controller.login("user", created.getTemporaryPassword());
         fixture.controller.changeOwnPassword(
@@ -155,11 +110,7 @@ class AppControllerTest {
     @Test
     void adminShouldNotEncryptBecauseAdminDoesNotInheritUserPermissions() {
         TestFixture fixture = newFixture();
-        AccountCreationResult created = createAccountDirectly(
-                fixture.accountService,
-                "admin",
-                Set.of(Role.ADMIN)
-        );
+        AccountCreationResult created = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
         fixture.controller.login("admin", created.getTemporaryPassword());
         fixture.controller.changeOwnPassword(
@@ -176,7 +127,7 @@ class AppControllerTest {
 
     @Test
     void encryptShouldFailWithoutLogin() {
-        AppController controller = newController();
+        AppController controller = new AppController();
 
         CryptoResult result = controller.encryptFile("in.txt", "out.enc");
 
@@ -186,11 +137,7 @@ class AppControllerTest {
     @Test
     void userWithoutTokenShouldNotEncrypt() {
         TestFixture fixture = newFixture();
-        AccountCreationResult created = createAccountDirectly(
-                fixture.accountService,
-                "user",
-                Set.of(Role.USER)
-        );
+        AccountCreationResult created = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
         fixture.controller.login("user", created.getTemporaryPassword());
         fixture.controller.changeOwnPassword(
@@ -206,11 +153,7 @@ class AppControllerTest {
     @Test
     void adminShouldCreateAccount() {
         TestFixture fixture = newFixture();
-        AccountCreationResult admin = createAccountDirectly(
-                fixture.accountService,
-                "admin",
-                Set.of(Role.ADMIN)
-        );
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
 
         fixture.controller.login("admin", admin.getTemporaryPassword());
         fixture.controller.changeOwnPassword(
@@ -230,11 +173,7 @@ class AppControllerTest {
     @Test
     void userShouldNotCreateAccount() {
         TestFixture fixture = newFixture();
-        AccountCreationResult user = createAccountDirectly(
-                fixture.accountService,
-                "user",
-                Set.of(Role.USER)
-        );
+        AccountCreationResult user = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
         fixture.controller.login("user", user.getTemporaryPassword());
         fixture.controller.changeOwnPassword(
@@ -259,16 +198,8 @@ class AppControllerTest {
     @Test
     void adminShouldUpdateRoles() {
         TestFixture fixture = newFixture();
-        AccountCreationResult admin = createAccountDirectly(
-                fixture.accountService,
-                "admin",
-                Set.of(Role.ADMIN)
-        );
-        AccountCreationResult user = createAccountDirectly(
-                fixture.accountService,
-                "user",
-                Set.of(Role.USER)
-        );
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
+        AccountCreationResult user = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
         fixture.controller.login("admin", admin.getTemporaryPassword());
         fixture.controller.changeOwnPassword(
@@ -285,16 +216,8 @@ class AppControllerTest {
     @Test
     void adminShouldResetPassword() {
         TestFixture fixture = newFixture();
-        AccountCreationResult admin = createAccountDirectly(
-                fixture.accountService,
-                "admin",
-                Set.of(Role.ADMIN)
-        );
-        AccountCreationResult user = createAccountDirectly(
-                fixture.accountService,
-                "user",
-                Set.of(Role.USER)
-        );
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
+        AccountCreationResult user = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
         fixture.controller.login("admin", admin.getTemporaryPassword());
         fixture.controller.changeOwnPassword(
@@ -312,16 +235,8 @@ class AppControllerTest {
     @Test
     void adminShouldDisableAndEnableAccount() {
         TestFixture fixture = newFixture();
-        AccountCreationResult admin = createAccountDirectly(
-                fixture.accountService,
-                "admin",
-                Set.of(Role.ADMIN)
-        );
-        AccountCreationResult user = createAccountDirectly(
-                fixture.accountService,
-                "user",
-                Set.of(Role.USER)
-        );
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
+        AccountCreationResult user = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
         fixture.controller.login("admin", admin.getTemporaryPassword());
         fixture.controller.changeOwnPassword(
@@ -340,11 +255,7 @@ class AppControllerTest {
     @Test
     void logoutShouldClearSession() {
         TestFixture fixture = newFixture();
-        AccountCreationResult admin = createAccountDirectly(
-                fixture.accountService,
-                "admin",
-                Set.of(Role.ADMIN)
-        );
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
 
         fixture.controller.login("admin", admin.getTemporaryPassword());
 
@@ -354,6 +265,5 @@ class AppControllerTest {
         assertTrue(fixture.controller.getAvailableRoles().isEmpty());
     }
 
-    private record TestFixture(AppController controller, AccountService accountService) {
-    }
+    private record TestFixture(AppController controller, AccountService accountService) {}
 }

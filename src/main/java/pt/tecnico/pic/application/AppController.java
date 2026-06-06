@@ -59,6 +59,8 @@ public class AppController {
         Account account = accountService.authenticate(username, password);
 
         if (account == null) {
+
+            // Defensive clearing of session state on failed login attempt, not necessary in most cases
             currentSession = null;
             currentMustChangePassword = false;
 
@@ -413,10 +415,6 @@ public class AppController {
         return new AccountResult(passwordResult.getResult(), passwordResult.getMessage());
     }
 
-    public void recordLogin(Integer accountId, String username, OperationResult result, String message) {
-        auditService.log(accountId, username, null, ActionType.LOGIN, null, result, message);
-    }
-
     public AuditService getAuditService() {
         return auditService;
     }
@@ -484,4 +482,5 @@ public class AppController {
                 account.mustChangePassword()
         );
     }
+
 }
