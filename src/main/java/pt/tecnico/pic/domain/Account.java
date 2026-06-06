@@ -30,8 +30,8 @@ public class Account {
             @JsonProperty("mustChangePassword") boolean mustChangePassword
     ) {
         this.id = id;
-        this.username = Objects.requireNonNull(username);
-        this.passwordHash = Objects.requireNonNull(passwordHash);
+        this.username = Objects.requireNonNull(username, "username must not be null");
+        this.passwordHash = Objects.requireNonNull(passwordHash, "passwordHash must not be null");
         this.roles = copyValidatedRoles(roles);
         this.active = active;
         this.mustChangePassword = mustChangePassword;
@@ -67,11 +67,11 @@ public class Account {
     }
 
     public void addRole(Role role) {
-        this.roles.add(Objects.requireNonNull(role));
+        this.roles.add(Objects.requireNonNull(role, "role must not be null"));
     }
 
     public void removeRole(Role role) {
-        this.roles.remove(role);
+        this.roles.remove(Objects.requireNonNull(role, "role must not be null"));
     }
 
     public void deactivate() {
@@ -83,21 +83,28 @@ public class Account {
     }
 
     public void changePassword(String newPasswordHash) {
-        this.passwordHash = Objects.requireNonNull(newPasswordHash);
+        this.passwordHash = Objects.requireNonNull(newPasswordHash, "newPasswordHash must not be null");
         this.mustChangePassword = false;
     }
 
-    /**
-     * Creates a defensive mutable copy of roles after validating that the set
-     * and all of its elements are non-null.
-     */ 
+    public void resetPassword(String temporaryPasswordHash) {
+        this.passwordHash = Objects.requireNonNull(temporaryPasswordHash, "temporaryPasswordHash must not be null");
+        this.mustChangePassword = true;
+    }
+
     private static Set<Role> copyValidatedRoles(Set<Role> roles) {
-        Objects.requireNonNull(roles);
+        Objects.requireNonNull(roles, "roles must not be null");
+
+        if (roles.isEmpty()) {
+            throw new IllegalArgumentException("At least one role is required.");
+        }
+
         for (Role role : roles) {
             if (role == null) {
-                throw new NullPointerException("Role set cannot contain null elements");
+                throw new NullPointerException("Role set cannot contain null elements.");
             }
         }
+
         return new HashSet<>(roles);
     }
 }

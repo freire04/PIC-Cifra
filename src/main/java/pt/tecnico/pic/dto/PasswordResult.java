@@ -4,21 +4,23 @@ import pt.tecnico.pic.domain.OperationResult;
 
 public class PasswordResult {
     private final OperationResult result;
-    private final String temporaryPassword;
+    private final char[] temporaryPassword;
     private final String message;
 
-    public PasswordResult(OperationResult result, String message, String temporaryPassword) {
+    public PasswordResult(OperationResult result, String message, char[] temporaryPassword) {
         this.result = result;
-        this.temporaryPassword = temporaryPassword;
         this.message = message;
+        this.temporaryPassword = temporaryPassword == null
+                ? null
+                : java.util.Arrays.copyOf(temporaryPassword, temporaryPassword.length);
     }
 
     public OperationResult getResult() {
         return result;
     }
 
-    public String getTemporaryPassword() {
-        return temporaryPassword;
+    public char[] getTemporaryPassword() {
+        return temporaryPassword == null ? null : java.util.Arrays.copyOf(temporaryPassword, temporaryPassword.length);
     }
 
     public String getMessage() {
