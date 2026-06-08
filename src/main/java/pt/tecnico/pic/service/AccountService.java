@@ -2,6 +2,7 @@ package pt.tecnico.pic.service;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import pt.tecnico.pic.domain.Account;
@@ -13,6 +14,8 @@ import pt.tecnico.pic.dto.PasswordResult;
 import pt.tecnico.pic.store.AccountStore;
 
 public class AccountService {
+    public static final String INITIAL_ADMIN_USERNAME = "admin";
+
     private final AccountStore accountStore;
     private final PasswordService passwordService;
 
@@ -91,6 +94,19 @@ public class AccountService {
         } finally {
             passwordService.clear(temporaryPassword);
         }
+    }
+
+    public synchronized Optional<AccountCreationResult> bootstrapInitialAdmin() {
+        if (accountStore.accountsFileExists() && !accountStore.findAll().isEmpty()) {
+            return Optional.empty();
+        }
+
+        AccountCreationResult result = createAccount(INITIAL_ADMIN_USERNAME, Set.of(Role.ADMIN));
+        if (result.getResult() != OperationResult.SUCCESS) {
+            throw new IllegalStateException("Could not bootstrap initial admin account.");
+        }
+
+        return Optional.of(result);
     }
 
     public Account getAccountById(int accountId) {
