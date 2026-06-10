@@ -8,7 +8,7 @@ public class AccountCreationResult {
     private final OperationResult result;
     private final int accountId;
     private final String username;
-    private final char[] temporaryPassword;
+    private char[] temporaryPassword;
     private final String message;
 
     public AccountCreationResult(OperationResult result, int accountId, String username, char[] temporaryPassword, String message) {
@@ -35,6 +35,13 @@ public class AccountCreationResult {
 
     public char[] getTemporaryPassword() {
         return temporaryPassword == null ? null : java.util.Arrays.copyOf(temporaryPassword, temporaryPassword.length);
+    }
+
+    public void clearTemporaryPassword() {
+        if (temporaryPassword != null) {
+            Arrays.fill(temporaryPassword, '\0');
+            temporaryPassword = null;
+        }
     }
 
     public String getMessage() {

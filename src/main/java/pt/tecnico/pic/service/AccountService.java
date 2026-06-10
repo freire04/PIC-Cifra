@@ -103,7 +103,12 @@ public class AccountService {
 
         AccountCreationResult result = createAccount(INITIAL_ADMIN_USERNAME, Set.of(Role.ADMIN));
         if (result.getResult() != OperationResult.SUCCESS) {
-            throw new IllegalStateException("Could not bootstrap initial admin account.");
+            throw new IllegalStateException(
+                    "Could not bootstrap initial admin account ("
+                            + result.getResult()
+                            + "): "
+                            + result.getMessage()
+            );
         }
 
         return Optional.of(result);
