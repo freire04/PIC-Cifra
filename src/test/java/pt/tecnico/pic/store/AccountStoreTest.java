@@ -1,15 +1,19 @@
 package pt.tecnico.pic.store;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import pt.tecnico.pic.domain.Account;
-import pt.tecnico.pic.domain.Role;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import pt.tecnico.pic.domain.Account;
+import pt.tecnico.pic.domain.Role;
 
 class AccountStoreTest {
 
@@ -32,6 +36,7 @@ class AccountStoreTest {
         store.save(account);
 
         assertTrue(Files.exists(accountsPath));
+        assertTrue(store.accountsFileExists());
         assertTrue(store.findByUsername("afonso").isPresent());
         assertTrue(store.findById(1).isPresent());
         assertEquals(1, store.findAll().size());
@@ -119,6 +124,7 @@ class AccountStoreTest {
         Path accountsPath = tempDir.resolve("accounts.json");
         AccountStore store = new AccountStore(accountsPath);
 
+        assertFalse(store.accountsFileExists());
         assertTrue(store.findAll().isEmpty());
         assertTrue(store.findActive().isEmpty());
         assertTrue(store.findDisabled().isEmpty());
