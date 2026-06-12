@@ -86,6 +86,10 @@ public class AccountStore {
                 .filter(account -> !account.isActive())
                 .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
     }
+
+    public boolean accountsFileExists() {
+        return Files.exists(accountsFilePath);
+    }
  
     public int getNextId() {
         return readAccounts().stream()

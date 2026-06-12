@@ -2,6 +2,7 @@ package pt.tecnico.pic.service;
 
 
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -54,6 +55,46 @@ class AccountServiceTest {
         assertTrue(account.isActive());
         assertTrue(account.mustChangePassword());
         assertFalse(account.getPasswordHash().contains(new String(result.getTemporaryPassword())));
+    }
+
+    @Test
+    void bootstrapInitialAdminShouldCreateAdminWhenAccountsFileIsMissing() {
+        AccountStore accountStore = newAccountStore();
+        PasswordService passwordService = new PasswordService();
+        AccountService accountService = new AccountService(accountStore, passwordService);
+
+        Optional<AccountCreationResult> result = accountService.bootstrapInitialAdmin();
+
+        assertTrue(result.isPresent());
+        assertEquals(OperationResult.SUCCESS, result.get().getResult());
+        assertEquals(AccountService.INITIAL_ADMIN_USERNAME, result.get().getUsername());
+        assertNotNull(result.get().getTemporaryPassword());
+
+        Account account = accountStore.findByUsername(AccountService.INITIAL_ADMIN_USERNAME).orElseThrow();
+
+        assertEquals(Set.of(Role.ADMIN), account.getRoles());
+        assertTrue(account.isActive());
+        assertTrue(account.mustChangePassword());
+        assertFalse(account.getPasswordHash().contains(new String(result.get().getTemporaryPassword())));
+        assertNotNull(accountService.authenticate(
+                AccountService.INITIAL_ADMIN_USERNAME,
+                result.get().getTemporaryPassword()
+        ));
+    }
+
+    @Test
+    void bootstrapInitialAdminShouldNotCreateAnotherAdminWhenAccountsAlreadyExist() {
+        AccountStore accountStore = newAccountStore();
+        PasswordService passwordService = new PasswordService();
+        AccountService accountService = new AccountService(accountStore, passwordService);
+
+        accountService.createAccount("existing-admin", Set.of(Role.ADMIN));
+
+        Optional<AccountCreationResult> result = accountService.bootstrapInitialAdmin();
+
+        assertTrue(result.isEmpty());
+        assertTrue(accountStore.findByUsername(AccountService.INITIAL_ADMIN_USERNAME).isEmpty());
+        assertEquals(1, accountStore.findAll().size());
     }
 
     @Test
