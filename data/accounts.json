@@ -1,0 +1,8 @@
+[ {
+  "id" : 1,
+  "username" : "admin",
+  "passwordHash" : "PBKDF2WithHmacSHA256$210000$lFIp6XmQfThf1QUfFNI+fQ==$ii5AUdyP6qt3n8f1zChsQ/eNpNXPCOLWYJoAWhx2c6A=",
+  "roles" : [ "ADMIN" ],
+  "active" : true,
+  "mustChangePassword" : true
+} ]
