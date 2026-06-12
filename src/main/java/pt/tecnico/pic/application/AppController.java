@@ -121,9 +121,9 @@ public class AppController {
 
         OperationResult result = OperationResult.SUCCESS;
 
-        if (currentSession.isTokenUnlocked() || fileCryptoService.isTokenUnlocked()) {
+        /*if (currentSession.isTokenUnlocked() || fileCryptoService.isTokenUnlocked()) {*/
+        if (fileCryptoService.isTokenUnlocked()) {
             result = fileCryptoService.lockToken();
-            currentSession.lockToken();
         }
 
         auditService.log(
@@ -184,7 +184,8 @@ public class AppController {
                     OperationResult.FAILED,
                     "Role is not available for this account.",
                     null,
-                    currentSession.isTokenUnlocked()
+                    /*currentSession.isTokenUnlocked()*/
+                    fileCryptoService.isTokenUnlocked()
             );
         }
 
@@ -192,7 +193,7 @@ public class AppController {
             OperationResult unlockResult = fileCryptoService.unlockToken(tokenPin);
 
             if (unlockResult != OperationResult.SUCCESS) {
-                currentSession.lockToken();
+                //currentSession.lockToken();
 
                 auditService.log(
                         currentSession.getAccountId(),
@@ -213,15 +214,16 @@ public class AppController {
             }
 
             currentSession.selectRole(role);
-            currentSession.unlockToken();
+            // currentSession.unlockToken();
 
         } else {
-            if (currentSession.isTokenUnlocked() || fileCryptoService.isTokenUnlocked()) {
+            // if (currentSession.isTokenUnlocked() || fileCryptoService.isTokenUnlocked()) {
+            if (fileCryptoService.isTokenUnlocked()) {
                 fileCryptoService.lockToken();
             }
 
             currentSession.selectRole(role);
-            currentSession.lockToken();
+            // currentSession.lockToken();
         }
 
         auditService.log(
@@ -238,7 +240,8 @@ public class AppController {
                 OperationResult.SUCCESS,
                 "Role selected successfully.",
                 role,
-                currentSession.isTokenUnlocked()
+                //currentSession.isTokenUnlocked()
+                fileCryptoService.isTokenUnlocked()
         );
     }
 
@@ -441,7 +444,7 @@ public class AppController {
         return isLoggedIn()
                 && !currentMustChangePassword
                 && hasSelectedRole(Role.USER)
-                && currentSession.isTokenUnlocked()
+                // && currentSession.isTokenUnlocked()
                 && fileCryptoService.isTokenUnlocked();
     }
 
@@ -458,7 +461,8 @@ public class AppController {
             return "Only USER role can encrypt or decrypt files.";
         }
 
-        if (!currentSession.isTokenUnlocked() || !fileCryptoService.isTokenUnlocked()) {
+        // if (!currentSession.isTokenUnlocked() || !fileCryptoService.isTokenUnlocked()) {
+        if (!fileCryptoService.isTokenUnlocked()) {
             return "Token is not unlocked.";
         }
 
