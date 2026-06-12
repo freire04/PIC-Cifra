@@ -8,11 +8,15 @@ import javafx.scene.control.PasswordField;
 import pt.tecnico.pic.application.AppController;
 import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.dto.AccountResult;
+import pt.tecnico.pic.presentation.PlaceholderAppController;
 import pt.tecnico.pic.presentation.SceneManager;
 
 public class ChangePasswordViewController {
     private final AppController appController;
     private final SceneManager sceneManager;
+
+    //PLACEHOLDER PARA TIRAR QUANDO HOUVER CONEXÃO ENTRE FRONTEND E BACKEND
+    private final PlaceholderAppController placeholderAppController = new PlaceholderAppController();
 
     @FXML
     private PasswordField oldPasswordField;
@@ -46,7 +50,7 @@ public class ChangePasswordViewController {
                 return;
             }
 
-            AccountResult changePasswordResult = appController.changeOwnPassword(oldPassword, newPassword);
+            AccountResult changePasswordResult = placeholderAppController.changeOwnPassword(oldPassword, newPassword);
 
             if (changePasswordResult.getResult() != OperationResult.SUCCESS) {
                 clearFields();

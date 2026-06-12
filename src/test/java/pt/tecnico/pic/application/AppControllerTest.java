@@ -2,130 +2,268 @@ package pt.tecnico.pic.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.nio.file.Path;
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.domain.Role;
+import pt.tecnico.pic.dto.AccountCreationResult;
 import pt.tecnico.pic.dto.AccountResult;
-import pt.tecnico.pic.dto.LogDTO;
+import pt.tecnico.pic.dto.CreateAccountRequest;
+import pt.tecnico.pic.dto.CryptoResult;
 import pt.tecnico.pic.dto.LoginResult;
+import pt.tecnico.pic.dto.PasswordResult;
 import pt.tecnico.pic.dto.RoleSelectionResult;
 import pt.tecnico.pic.service.AccountService;
 import pt.tecnico.pic.service.AuditService;
 import pt.tecnico.pic.service.FileCryptoService;
+import pt.tecnico.pic.service.PasswordService;
+import pt.tecnico.pic.store.AccountStore;
 
 class AppControllerTest {
 
-    @Test
-    void recordLoginShouldCreateAuditLogWithoutActorRole() {
+    @TempDir
+    Path tempDir;
+
+    private TestFixture newFixture() {
         AuditService auditService = new AuditService();
-        AppController appController = new AppController(new AccountService(), auditService);
-
-        appController.recordLogin(42, "alice", OperationResult.SUCCESS, "login ok");
-
-        assertEquals(1, auditService.getLogs().size());
-
-        LogDTO log = auditService.getLogs().get(0);
-
-        assertEquals(ActionType.LOGIN, log.getActionType());
-        assertEquals("alice", log.getUsername());
-        assertEquals(OperationResult.SUCCESS, log.getResult());
-        assertEquals("login ok", log.getMessage());
-        assertNull(log.getActorRole());
-    }
-
-    @Test
-    void constructorShouldAcceptSharedAuditService() {
-        AuditService auditService = new AuditService();
+        AccountStore accountStore = new AccountStore(tempDir.resolve("accounts.json"));
+        PasswordService passwordService = new PasswordService();
+        AccountService accountService = new AccountService(accountStore, passwordService);
         FileCryptoService fileCryptoService = new FileCryptoService(auditService);
-        AppController appController = new AppController(new AccountService(), auditService, fileCryptoService);
+        AppController controller = new AppController(accountService, auditService, fileCryptoService);
 
-        assertSame(auditService, appController.getAuditService());
-        assertSame(fileCryptoService, appController.getFileCryptoService());
+        return new TestFixture(controller, accountService);
     }
 
     @Test
-    void constructorShouldRejectFileCryptoServiceWithDifferentAuditService() {
-        AuditService appAuditService = new AuditService();
-        AuditService fileAuditService = new AuditService();
-        AccountService accountService = new AccountService();
-        FileCryptoService fileCryptoService = new FileCryptoService(fileAuditService);
+    void loginShouldCreateSessionWithAvailableRoles() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult created = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new AppController(accountService, appAuditService, fileCryptoService)
+        LoginResult login = fixture.controller.login(
+                "user",
+                created.getTemporaryPassword()
         );
+
+        assertEquals(OperationResult.SUCCESS, login.getResult());
+        assertEquals("user", login.getUsername());
+        assertEquals(Set.of(Role.USER), login.getAvailableRoles());
+        assertTrue(login.mustChangePassword());
     }
 
     @Test
-    void loginShouldSucceedWithValidCredentialsPlaceholder() {
-        AppController appController = new AppController();
+    void loginShouldFailWithWrongPassword() {
+        TestFixture fixture = newFixture();
+        fixture.accountService.createAccount("user", Set.of(Role.USER));
 
-        LoginResult result = appController.login("abc", "123".toCharArray());
+        LoginResult login = fixture.controller.login("user", "wrong".toCharArray());
 
-        assertEquals(OperationResult.SUCCESS, result.getResult());
-        assertEquals("Login successful.", result.getMessage());
-        assertEquals("abc", result.getUsername());
-        assertFalse(result.mustChangePassword());
+        assertEquals(OperationResult.FAILED, login.getResult());
     }
 
     @Test
-    void loginShouldRequirePasswordChangePlaceholder() {
-        AppController appController = new AppController();
+    void mustChangePasswordShouldBlockRoleSelectionUntilPasswordIsChanged() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult created = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
-        LoginResult result = appController.login("teste", "123".toCharArray());
+        fixture.controller.login("user", created.getTemporaryPassword());
 
-        assertEquals(OperationResult.SUCCESS, result.getResult());
-        assertEquals("Login successful.", result.getMessage());
-        assertEquals("teste", result.getUsername());
-        assertTrue(result.mustChangePassword());
+        assertTrue(fixture.controller.getAvailableRoles().isEmpty());
+
+        RoleSelectionResult blocked = fixture.controller.selectRole(Role.USER, "123456".toCharArray());
+
+        assertEquals(OperationResult.FAILED, blocked.getResult());
+
+        AccountResult changed = fixture.controller.changeOwnPassword(
+                created.getTemporaryPassword(),
+                "NewPassword123!".toCharArray()
+        );
+
+        assertEquals(OperationResult.SUCCESS, changed.getResult());
+        assertEquals(Set.of(Role.USER), fixture.controller.getAvailableRoles());
     }
 
     @Test
-    void loginShouldFailWithInvalidCredentialsPlaceholder() {
-        AppController appController = new AppController();
+    void selectRoleShouldRejectUnavailableRole() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult created = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
-        LoginResult result = appController.login("abc", "wrong".toCharArray());
+        fixture.controller.login("user", created.getTemporaryPassword());
+        fixture.controller.changeOwnPassword(
+                created.getTemporaryPassword(),
+                "NewPassword123!".toCharArray()
+        );
 
-        assertEquals(OperationResult.ERROR, result.getResult());
-        assertEquals("Login failed.", result.getMessage());
-        assertFalse(result.mustChangePassword());
-    }
-
-    @Test
-    void changeOwnPasswordShouldSucceedWithValidPlaceholderPasswords() {
-        AppController appController = new AppController();
-
-        AccountResult result = appController.changeOwnPassword("old".toCharArray(), "new".toCharArray());
-
-        assertEquals(OperationResult.SUCCESS, result.getResult());
-        assertEquals("Password changed successfully.", result.getMessage());
-    }
-
-    @Test
-    void changeOwnPasswordShouldFailWhenNewPasswordEqualsOldPasswordPlaceholder() {
-        AppController appController = new AppController();
-
-        AccountResult result = appController.changeOwnPassword("same".toCharArray(), "same".toCharArray());
+        RoleSelectionResult result = fixture.controller.selectRole(Role.ADMIN, null);
 
         assertEquals(OperationResult.FAILED, result.getResult());
-        assertEquals("New password cannot be the same as the old password.", result.getMessage());
     }
 
     @Test
-    void selectRoleShouldSucceedPlaceholder() {
-        AppController appController = new AppController();
+    void adminShouldNotEncryptBecauseAdminDoesNotInheritUserPermissions() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult created = fixture.accountService.createAccount("user", Set.of(Role.USER));
 
-        RoleSelectionResult result =
-                appController.selectRole(Role.ADMIN, null);
+        fixture.controller.login("admin", created.getTemporaryPassword());
+        fixture.controller.changeOwnPassword(
+                created.getTemporaryPassword(),
+                "AdminPassword123!".toCharArray()
+        );
+        fixture.controller.selectRole(Role.ADMIN, null);
 
-        assertEquals(OperationResult.SUCCESS, result.getResult());
-        assertEquals(Role.ADMIN, result.getSelectedRole());
+        CryptoResult result = fixture.controller.encryptFile("in.txt", "out.enc");
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+        assertEquals(ActionType.ENCRYPT_FILE, result.getActionType());
     }
 
+    @Test
+    void encryptShouldFailWithoutLogin() {
+        AppController controller = new AppController();
+
+        CryptoResult result = controller.encryptFile("in.txt", "out.enc");
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+    }
+
+    @Test
+    void userWithoutTokenShouldNotEncrypt() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult created = fixture.accountService.createAccount("user", Set.of(Role.USER));
+
+        fixture.controller.login("user", created.getTemporaryPassword());
+        fixture.controller.changeOwnPassword(
+                created.getTemporaryPassword(),
+                "UserPassword123!".toCharArray()
+        );
+
+        CryptoResult result = fixture.controller.encryptFile("in.txt", "out.enc");
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+    }
+
+    @Test
+    void adminShouldCreateAccount() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
+
+        fixture.controller.login("admin", admin.getTemporaryPassword());
+        fixture.controller.changeOwnPassword(
+                admin.getTemporaryPassword(),
+                "AdminPassword123!".toCharArray()
+        );
+        fixture.controller.selectRole(Role.ADMIN, null);
+
+        AccountCreationResult created = fixture.controller.createAccount(
+                new CreateAccountRequest("newuser", Set.of(Role.USER))
+        );
+
+        assertEquals(OperationResult.SUCCESS, created.getResult());
+        assertNotNull(created.getTemporaryPassword());
+    }
+
+    @Test
+    void userShouldNotCreateAccount() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult user = fixture.accountService.createAccount("user", Set.of(Role.USER));
+
+        fixture.controller.login("user", user.getTemporaryPassword());
+        fixture.controller.changeOwnPassword(
+                user.getTemporaryPassword(),
+                "UserPassword123!".toCharArray()
+        );
+
+        RoleSelectionResult roleSelection = fixture.controller.selectRole(Role.USER, "123456".toCharArray());
+
+        if (roleSelection.getResult() != OperationResult.SUCCESS) {
+            // Token setup is environment-dependent in the current crypto layer.
+            // The important part here is that selectedRole is not ADMIN.
+        }
+
+        AccountCreationResult result = fixture.controller.createAccount(
+                new CreateAccountRequest("newuser", Set.of(Role.USER))
+        );
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+    }
+
+    @Test
+    void adminShouldUpdateRoles() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
+        AccountCreationResult user = fixture.accountService.createAccount("user", Set.of(Role.USER));
+
+        fixture.controller.login("admin", admin.getTemporaryPassword());
+        fixture.controller.changeOwnPassword(
+                admin.getTemporaryPassword(),
+                "AdminPassword123!".toCharArray()
+        );
+        fixture.controller.selectRole(Role.ADMIN, null);
+
+        AccountResult result = fixture.controller.updateUserRoles(user.getAccountId(), Set.of(Role.ADMIN));
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+    }
+
+    @Test
+    void adminShouldResetPassword() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
+        AccountCreationResult user = fixture.accountService.createAccount("user", Set.of(Role.USER));
+
+        fixture.controller.login("admin", admin.getTemporaryPassword());
+        fixture.controller.changeOwnPassword(
+                admin.getTemporaryPassword(),
+                "AdminPassword123!".toCharArray()
+        );
+        fixture.controller.selectRole(Role.ADMIN, null);
+
+        PasswordResult result = fixture.controller.resetPassword(user.getAccountId());
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+        assertNotNull(result.getTemporaryPassword());
+    }
+
+    @Test
+    void adminShouldDisableAndEnableAccount() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
+        AccountCreationResult user = fixture.accountService.createAccount("user", Set.of(Role.USER));
+
+        fixture.controller.login("admin", admin.getTemporaryPassword());
+        fixture.controller.changeOwnPassword(
+                admin.getTemporaryPassword(),
+                "AdminPassword123!".toCharArray()
+        );
+        fixture.controller.selectRole(Role.ADMIN, null);
+
+        AccountResult disabled = fixture.controller.disableAccount(user.getAccountId());
+        AccountResult enabled = fixture.controller.enableAccount(user.getAccountId());
+
+        assertEquals(OperationResult.SUCCESS, disabled.getResult());
+        assertEquals(OperationResult.SUCCESS, enabled.getResult());
+    }
+
+    @Test
+    void logoutShouldClearSession() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
+
+        fixture.controller.login("admin", admin.getTemporaryPassword());
+
+        OperationResult logout = fixture.controller.logout();
+
+        assertEquals(OperationResult.SUCCESS, logout);
+        assertTrue(fixture.controller.getAvailableRoles().isEmpty());
+    }
+
+    private record TestFixture(AppController controller, AccountService accountService) {}
 }

@@ -9,11 +9,15 @@ import javafx.scene.control.TextField;
 import pt.tecnico.pic.application.AppController;
 import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.dto.LoginResult;
+import pt.tecnico.pic.presentation.PlaceholderAppController;
 import pt.tecnico.pic.presentation.SceneManager;
 
 public class LoginViewController {
     private final AppController appController;
     private final SceneManager sceneManager;
+
+    //PLACEHOLDER PARA TIRAR QUANDO HOUVER CONEXÃO ENTRE FRONTEND E BACKEND
+    private final PlaceholderAppController placeholderAppController = new PlaceholderAppController();
 
     @FXML
     private TextField usernameField;
@@ -38,7 +42,7 @@ public class LoginViewController {
         char[] password = passwordField.getText().toCharArray();
 
         try{
-            LoginResult loginResult = appController.login(username, password);
+            LoginResult loginResult = placeholderAppController.login(username, password);
 
             if (loginResult.getResult() != OperationResult.SUCCESS) {
                 showError(loginResult.getMessage());
