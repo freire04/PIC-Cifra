@@ -37,6 +37,13 @@ public class AppController {
     private Session currentSession;
     private boolean currentMustChangePassword;
 
+    /**
+     * VIEW_LOGS audit policy: register at most one VIEW_LOGS event per
+     * authenticated session / selected role. Refreshes and repeated filter
+     * changes should not spam the audit file.
+     */
+    private boolean viewLogsLoggedThisSession;
+
     public AppController() {
         this(new AccountService(), new AuditService());
     }
@@ -63,6 +70,7 @@ public class AppController {
             // Defensive clearing of session state on failed login attempt, not necessary in most cases
             currentSession = null;
             currentMustChangePassword = false;
+            resetViewLogsAuditPolicy();
 
             auditService.log(
                     null,
@@ -86,6 +94,7 @@ public class AppController {
 
         currentSession = new Session(account.getId(), account.getUsername(), account.getRoles());
         currentMustChangePassword = account.mustChangePassword();
+        resetViewLogsAuditPolicy();
 
         auditService.log(
                 account.getId(),
@@ -138,6 +147,7 @@ public class AppController {
 
         currentSession = null;
         currentMustChangePassword = false;
+        resetViewLogsAuditPolicy();
 
         return result;
     }
@@ -214,6 +224,7 @@ public class AppController {
             }
 
             currentSession.selectRole(role);
+            resetViewLogsAuditPolicy();
             // currentSession.unlockToken();
 
         } else {
@@ -223,6 +234,7 @@ public class AppController {
             }
 
             currentSession.selectRole(role);
+            resetViewLogsAuditPolicy();
             // currentSession.lockToken();
         }
 
@@ -416,6 +428,20 @@ public class AppController {
         );
 
         return new AccountResult(passwordResult.getResult(), passwordResult.getMessage());
+    }
+
+
+    private boolean shouldLogViewLogsAccess() {
+        if (viewLogsLoggedThisSession) {
+            return false;
+        }
+
+        viewLogsLoggedThisSession = true;
+        return true;
+    }
+
+    private void resetViewLogsAuditPolicy() {
+        viewLogsLoggedThisSession = false;
     }
 
     public AuditService getAuditService() {
