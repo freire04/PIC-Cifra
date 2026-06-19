@@ -109,9 +109,16 @@ public class AppController {
 
     public OperationResult logout() {
 
-        // If the user is not logged in, we can consider the logout successful
-        // isto é mais para casos de debugs do que para casos reais
         if (!isLoggedIn()) {
+            auditService.log(
+                    null,
+                    null,
+                    null,
+                    ActionType.LOGOUT,
+                    null,
+                    OperationResult.FAILED,
+                    "Logout failed: no authenticated user."
+            );
             return OperationResult.FAILED;
         }
 
@@ -152,6 +159,15 @@ public class AppController {
 
     public RoleSelectionResult selectRole(Role role, char[] tokenPin) {
         if (!isLoggedIn()) {
+            auditService.log(
+                    null,
+                    null,
+                    null,
+                    ActionType.SELECT_ROLE,
+                    null,
+                    OperationResult.FAILED,
+                    "Role selection failed: user is not logged in."
+            );
             return new RoleSelectionResult(
                     OperationResult.FAILED,
                     "User is not logged in.",
@@ -161,6 +177,15 @@ public class AppController {
         }
 
         if (currentMustChangePassword) {
+            auditService.log(
+                    currentSession.getAccountId(),
+                    currentSession.getUsername(),
+                    currentSession.getSelectedRole(),
+                    ActionType.SELECT_ROLE,
+                    null,
+                    OperationResult.FAILED,
+                    "Role selection failed: password must be changed."
+            );
             return new RoleSelectionResult(
                     OperationResult.FAILED,
                     "Password must be changed before selecting a role.",
@@ -247,9 +272,11 @@ public class AppController {
 
     public CryptoResult encryptFile(String inputPath, String outputPath) {
         if (!canUseCrypto()) {
+            String message = cryptoAccessFailureMessage();
+            logProtectedActionDenied(ActionType.ENCRYPT_FILE, inputPath, OperationResult.FAILED, message);
             return new CryptoResult(
                     OperationResult.FAILED,
-                    cryptoAccessFailureMessage(),
+                    message,
                     inputPath,
                     outputPath,
                     ActionType.ENCRYPT_FILE
@@ -261,9 +288,11 @@ public class AppController {
 
     public CryptoResult decryptFile(String inputPath, String outputPath) {
         if (!canUseCrypto()) {
+            String message = cryptoAccessFailureMessage();
+            logProtectedActionDenied(ActionType.DECRYPT_FILE, inputPath, OperationResult.FAILED, message);
             return new CryptoResult(
                     OperationResult.FAILED,
-                    cryptoAccessFailureMessage(),
+                    message,
                     inputPath,
                     outputPath,
                     ActionType.DECRYPT_FILE
@@ -286,12 +315,14 @@ public class AppController {
 
     public AccountCreationResult createAccount(CreateAccountRequest request) {
         if (!canManageAccounts()) {
+            String message = "Only ADMIN can create accounts.";
+            logProtectedActionDenied(ActionType.CREATE_ACCOUNT, null, OperationResult.FAILED, message);
             return new AccountCreationResult(
                     OperationResult.FAILED,
                     -1,
                     null,
                     null,
-                    "Only ADMIN can create accounts."
+                    message
             );
         }
 
@@ -312,7 +343,9 @@ public class AppController {
 
     public AccountResult updateUserRoles(int accountId, Set<Role> roles) {
         if (!canManageAccounts()) {
-            return new AccountResult(OperationResult.FAILED, "Only ADMIN can update user roles.");
+            String message = "Only ADMIN can update user roles.";
+            logProtectedActionDenied(ActionType.UPDATE_ROLES, null, OperationResult.FAILED, message);
+            return new AccountResult(OperationResult.FAILED, message);
         }
 
         AccountResult result = accountService.updateRoles(accountId, roles);
@@ -332,7 +365,9 @@ public class AppController {
 
     public PasswordResult resetPassword(int accountId) {
         if (!canManageAccounts()) {
-            return new PasswordResult(OperationResult.FAILED, "Only ADMIN can reset passwords.", null);
+            String message = "Only ADMIN can reset passwords.";
+            logProtectedActionDenied(ActionType.RESET_PASSWORD, null, OperationResult.FAILED, message);
+            return new PasswordResult(OperationResult.FAILED, message, null);
         }
 
         PasswordResult result = accountService.resetPassword(accountId);
@@ -352,7 +387,9 @@ public class AppController {
 
     public AccountResult disableAccount(int accountId) {
         if (!canManageAccounts()) {
-            return new AccountResult(OperationResult.FAILED, "Only ADMIN can disable accounts.");
+            String message = "Only ADMIN can disable accounts.";
+            logProtectedActionDenied(ActionType.DISABLE_ACCOUNT, null, OperationResult.FAILED, message);
+            return new AccountResult(OperationResult.FAILED, message);
         }
 
         AccountResult result = accountService.disableAccount(accountId);
@@ -372,7 +409,9 @@ public class AppController {
 
     public AccountResult enableAccount(int accountId) {
         if (!canManageAccounts()) {
-            return new AccountResult(OperationResult.FAILED, "Only ADMIN can enable accounts.");
+            String message = "Only ADMIN can enable accounts.";
+            logProtectedActionDenied(ActionType.ENABLE_ACCOUNT, null, OperationResult.FAILED, message);
+            return new AccountResult(OperationResult.FAILED, message);
         }
 
         AccountResult result = accountService.enableAccount(accountId);
@@ -392,7 +431,9 @@ public class AppController {
 
     public AccountResult changeOwnPassword(char[] oldPassword, char[] newPassword) {
         if (!isLoggedIn()) {
-            return new AccountResult(OperationResult.FAILED, "User is not logged in.");
+            String message = "User is not logged in.";
+            logProtectedActionDenied(ActionType.CHANGE_PASSWORD, null, OperationResult.FAILED, message);
+            return new AccountResult(OperationResult.FAILED, message);
         }
 
         PasswordResult passwordResult = accountService.changePassword(
@@ -416,6 +457,23 @@ public class AppController {
         );
 
         return new AccountResult(passwordResult.getResult(), passwordResult.getMessage());
+    }
+
+
+    private void logProtectedActionDenied(ActionType action, String filePath, OperationResult result, String message) {
+        Integer accountId = currentSession == null ? null : currentSession.getAccountId();
+        String username = currentSession == null ? null : currentSession.getUsername();
+        Role actorRole = currentSession == null ? null : currentSession.getSelectedRole();
+
+        auditService.log(
+                accountId,
+                username,
+                actorRole,
+                action,
+                filePath,
+                result,
+                message
+        );
     }
 
     public AuditService getAuditService() {

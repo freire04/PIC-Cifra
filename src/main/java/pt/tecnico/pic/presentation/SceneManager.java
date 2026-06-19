@@ -217,8 +217,8 @@ public class SceneManager {
     }
     
     public void logout() {
-        // TODO (S1-10): call appController.logout().
-        // appController.logout();
+        appController.logout();
+        selectedRole = null;
         showLogin();
     }
 
