@@ -68,9 +68,13 @@ public class SceneManager {
     }
 
     public void showChangePassword() {
+        showChangePassword(true);
+    }
+
+    public void showChangePassword(boolean mandatoryChange) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/ChangePasswordView.fxml"));
-            ChangePasswordViewController controller = new ChangePasswordViewController(appController, this);
+            ChangePasswordViewController controller = new ChangePasswordViewController(appController, this, mandatoryChange);
             loader.setController(controller);
             Parent root = loader.load();
 
