@@ -64,7 +64,11 @@ public class FileEncryptionViewController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Save encrypted file");
         fileChooser.setInitialFileName(FileUtils.suggestEncryptedFileName(selectedInputFile));
-        fileChooser.setInitialDirectory(FileUtils.getDefaultDirectory());
+        if (selectedInputFile != null && selectedInputFile.getParentFile() != null) {
+            fileChooser.setInitialDirectory(selectedInputFile.getParentFile());
+        } else {
+            fileChooser.setInitialDirectory(FileUtils.getDefaultDirectory());
+        }
 
         File outputFile = fileChooser.showSaveDialog(stage);
         if (outputFile == null) {
