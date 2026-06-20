@@ -13,15 +13,11 @@ import pt.tecnico.pic.application.AppController;
 import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.dto.RoleSelectionResult;
-import pt.tecnico.pic.presentation.PlaceholderAppController;
 import pt.tecnico.pic.presentation.SceneManager;
 
 public class RoleSelectionViewController {
     private final AppController appController;
     private final SceneManager sceneManager;
-
-    //PLACEHOLDER PARA TIRAR QUANDO HOUVER CONEXÃO ENTRE FRONTEND E BACKEND
-    private final PlaceholderAppController placeholderAppController = new PlaceholderAppController();
 
     @FXML
     private HBox rolesContainer;
@@ -42,14 +38,18 @@ public class RoleSelectionViewController {
 
     @FXML
     public void onLogoutClicked() {
-        // TODO (S1-10): appController.logout();
-        sceneManager.showLogin();
+        OperationResult logoutResult = appController.logout();
+        if (logoutResult == OperationResult.SUCCESS) {
+            sceneManager.showLogin();
+        } else {
+            showError("Logout failed: " + logoutResult);
+        }
     }
 
     private void loadAvailableRoles() {
         rolesContainer.getChildren().clear();
 
-        Set<Role> availableRoles = placeholderAppController.getAvailableRoles();
+        Set<Role> availableRoles = appController.getAvailableRoles();
 
         List<Role> orderedRoles = List.of(
                 Role.USER,
@@ -77,7 +77,7 @@ public class RoleSelectionViewController {
             char[] pin = pinResult.get();
 
             try {
-                RoleSelectionResult result = placeholderAppController.selectRole(role, pin);
+                RoleSelectionResult result = appController.selectRole(role, pin);
                 handleRoleSelectionResult(result);
             } finally {
                 Arrays.fill(pin, '\0');
@@ -85,7 +85,7 @@ public class RoleSelectionViewController {
             return;
         }
 
-        RoleSelectionResult result = placeholderAppController.selectRole(role, null);
+        RoleSelectionResult result = appController.selectRole(role, null);
         handleRoleSelectionResult(result);
     }
 

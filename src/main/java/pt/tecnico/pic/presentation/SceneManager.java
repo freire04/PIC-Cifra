@@ -21,7 +21,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import pt.tecnico.pic.application.AppController;
 import pt.tecnico.pic.domain.Role;
-import pt.tecnico.pic.presentation.controller.AdminUserViewController;
+import pt.tecnico.pic.presentation.controller.AdminViewController;
 import pt.tecnico.pic.presentation.controller.AuditLogViewController;
 import pt.tecnico.pic.presentation.controller.ChangePasswordViewController;
 import pt.tecnico.pic.presentation.controller.DashboardViewController;
@@ -111,10 +111,7 @@ public class SceneManager {
             }
         });
 
-        Label hintLabel = new Label("Hint: Use 123456 for testing");
-        hintLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
-
-        VBox content = new VBox(6, hintLabel, pinField);
+        VBox content = new VBox(6, pinField);
         content.setAlignment(Pos.CENTER);
 
         pinDialog.getDialogPane().setContent(content);
@@ -190,30 +187,17 @@ public class SceneManager {
     }
 
     public void showAdminUsers() {
-        AdminUserViewController controller = new AdminUserViewController(appController, this);
-        
-        Label title = new Label("Admin Users View");
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AdminView.fxml"));
+            AdminViewController controller = new AdminViewController(appController, this);
+            loader.setController(controller);
+            Parent root = loader.load();
 
-        Button changeRoleButton = new Button("Change Role");
-        changeRoleButton.setOnAction(event -> showRoleSelection());
+            setScene(root);
 
-        Button logoutButton = new Button("Logout");
-        logoutButton.setOnAction(event -> logout());
-
-        HBox topRightButtons = new HBox(12, changeRoleButton, logoutButton);
-        topRightButtons.setAlignment(Pos.TOP_RIGHT);
-
-        VBox centerContent = new VBox(title);
-        centerContent.setAlignment(Pos.CENTER);
-
-        BorderPane root = new BorderPane();
-
-        root.setTop(topRightButtons);
-        root.setCenter(centerContent);
-
-        BorderPane.setAlignment(topRightButtons, Pos.TOP_RIGHT);
-
-        setScene(root);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load AdminView.fxml", e);
+        }
     }
     
     public void logout() {
