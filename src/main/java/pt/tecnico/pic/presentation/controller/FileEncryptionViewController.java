@@ -76,8 +76,7 @@ public class FileEncryptionViewController {
             return;
         }
 
-        // Se o utilizador tirou o .enc à mão, nós voltamos a colocá-lo
-        if (!outputFile.getName().endsWith(".enc")) {
+        if (!outputFile.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".enc")) {
             outputFile = new File(outputFile.getParent(), outputFile.getName() + ".enc");
         }
         
@@ -89,7 +88,7 @@ public class FileEncryptionViewController {
             outputFile.getAbsolutePath()
         );
 
-        showResult(result, outputFile);
+        showResult(result);
         encryptButton.setDisable(false);
     }
 
@@ -135,14 +134,15 @@ public class FileEncryptionViewController {
         });
     }
 
-    private void showResult(CryptoResult result, File outputFile) {
+    private void showResult(CryptoResult result) {
         if (result == null) {
             showError("No result returned.");
             return;
         }
 
         if (result.getResult() == OperationResult.SUCCESS) {
-            statusLabel.setText("Saved as: " + outputFile.getName());
+            String finalName = new File(result.getOutputFilePath()).getName();
+            statusLabel.setText("Saved as: " + finalName);
         } else {
             showError(result.getMessage());
         }

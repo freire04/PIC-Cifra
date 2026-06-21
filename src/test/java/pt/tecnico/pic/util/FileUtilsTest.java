@@ -13,7 +13,7 @@ class FileUtilsTest {
     void testSuggestEncryptedFileName_WithNormalExtension() {
         File inputFile = new File("documento.txt");
         String suggested = FileUtils.suggestEncryptedFileName(inputFile);
-        assertEquals("documento.enc", suggested); 
+        assertEquals("documento.txt.enc", suggested);
     }
 
     @Test
@@ -62,5 +62,39 @@ class FileUtilsTest {
         assertNotNull(defaultDir);
         assertTrue(defaultDir.isDirectory());
         assertTrue(defaultDir.exists());
+    }
+
+    @Test
+    void testSuggestDecryptedFileName_WithEncExtension() {
+        File inputFile = new File("arquivo.txt.enc");
+        String suggested = FileUtils.suggestDecryptedFileName(inputFile);
+        assertEquals("arquivo.txt", suggested);
+    }
+
+    @Test
+    void testSuggestDecryptedFileName_WithUppercaseEncExtension() {
+        File inputFile = new File("arquivo.txt.ENC");
+        String suggested = FileUtils.suggestDecryptedFileName(inputFile);
+        assertEquals("arquivo.txt", suggested);
+    }
+
+    @Test
+    void testSuggestDecryptedFileName_WithoutEncExtension() {
+        File inputFile = new File("documento_original.txt");
+        String suggested = FileUtils.suggestDecryptedFileName(inputFile);
+        assertEquals("documento_original.txt.dec", suggested);
+    }
+
+    @Test
+    void testSuggestDecryptedFileName_WithNoExtensionAtAll() {
+        File inputFile = new File("ficheiro_semeextensao");
+        String suggested = FileUtils.suggestDecryptedFileName(inputFile);
+        assertEquals("ficheiro_semeextensao.dec", suggested);
+    }
+
+    @Test
+    void testSuggestDecryptedFileName_WithNull() {
+        String suggested = FileUtils.suggestDecryptedFileName(null);
+        assertEquals("", suggested);
     }
 }

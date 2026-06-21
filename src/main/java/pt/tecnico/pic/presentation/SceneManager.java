@@ -170,7 +170,17 @@ public class SceneManager {
     }
 
     public void showDecryptionView() {
-        showFileCryptoPlaceholder(false);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/FileDecryptionView.fxml"));
+            FileDecryptionViewController controller = new FileDecryptionViewController(appController, this);
+            loader.setController(controller);
+            Parent root = loader.load();
+
+            setScene(root);
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load FileDecryptionView.fxml", e);
+        }
     }
 
     public void showAuditLogs() {
@@ -218,77 +228,6 @@ public class SceneManager {
         // TODO (S1-10): call appController.logout().
         // appController.logout();
         showLogin();
-    }
-
-    private void showFileCryptoPlaceholder(boolean encryptionMode) {
-
-        if (encryptionMode) {
-            FileEncryptionViewController controller = new FileEncryptionViewController(appController, this);
-        } else {
-            FileDecryptionViewController controller = new FileDecryptionViewController(appController, this);
-        }
-
-        String dropText = encryptionMode
-                ? "Drop file to encrypt here"
-                : "Drop file to decrypt here";
-
-        String actionText = encryptionMode
-                ? "Encrypt"
-                : "Decrypt";
-
-        Button encryptTab = new Button("Encrypt File");
-        encryptTab.setOnAction(event -> showEncryptionView());
-        encryptTab.setDisable(encryptionMode);
-
-        Button decryptTab = new Button("Decrypt File");
-        decryptTab.setOnAction(event -> showDecryptionView());
-        decryptTab.setDisable(!encryptionMode);
-
-        HBox tabs = new HBox(8, encryptTab, decryptTab);
-        tabs.setAlignment(Pos.CENTER_LEFT);
-
-        Label uploadIcon = new Label("⇧");
-        uploadIcon.setStyle("-fx-font-size: 36px;");
-
-        Label dropLabel = new Label(dropText + " or browse");
-        Label supportedLabel = new Label("Any file type supported");
-
-        VBox dropContent = new VBox(8, uploadIcon, dropLabel, supportedLabel);
-        dropContent.setAlignment(Pos.CENTER);
-
-        VBox dropArea = new VBox(dropContent);
-        dropArea.setAlignment(Pos.CENTER);
-        dropArea.setPrefSize(560, 220);
-        dropArea.setMinSize(560, 220);
-        dropArea.setMaxSize(560, 220);
-
-        dropArea.setStyle(
-                "-fx-border-color: #9ca3af;" +
-                "-fx-border-style: dashed;" +
-                "-fx-border-width: 2;" +
-                "-fx-background-color: #f9fafb;"
-        );
-
-        Label selectedFileLabel = new Label("Selected file: -");
-        Label sizeLabel = new Label("Size: -");
-
-        HBox fileInfo = new HBox(260, selectedFileLabel, sizeLabel);
-        fileInfo.setAlignment(Pos.CENTER);
-
-        Button actionButton = new Button(actionText);
-        actionButton.setDisable(true);
-
-        Button backButton = new Button("Back");
-        backButton.setOnAction(event -> showDashboard());
-
-        HBox bottomButtons = new HBox(12, actionButton, backButton);
-        bottomButtons.setAlignment(Pos.CENTER_RIGHT);
-
-        VBox root = new VBox(20, tabs, dropArea, fileInfo, bottomButtons);
-        root.setAlignment(Pos.CENTER);
-        root.setPadding(new javafx.geometry.Insets(24));
-
-        setScene(root);
     }
 
     private void setScene(Parent root) {
