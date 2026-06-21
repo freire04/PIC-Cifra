@@ -264,6 +264,8 @@ class PKCS11ServiceTest {
         PKCS11Service service = new PKCS11Service();
         openFakeSession(service);
 
+        assertEquals(OperationResult.FAILED, service.decryptFile(null, "plain.txt").getResult());
+        assertEquals(OperationResult.FAILED, service.decryptFile("plain.pic", null).getResult());
         assertEquals(OperationResult.FAILED, service.decryptFile("", "plain.txt").getResult());
         assertEquals(OperationResult.FAILED, service.decryptFile("plain.pic", " ").getResult());
     }
@@ -369,13 +371,16 @@ class PKCS11ServiceTest {
         openSoftwareBackedSession(service);
         Path input = tempDir.resolve("plain.txt");
         Path encrypted = tempDir.resolve("plain.pic");
-        Path decrypted = tempDir.resolve("plain.out.txt");
+        Path decrypted = tempDir.resolve("user-selected-output.custom");
         byte[] original = "conteudo a proteger".getBytes(StandardCharsets.UTF_8);
         Files.write(input, original);
 
         assertEquals(OperationResult.SUCCESS, service.encryptFile(input.toString(), encrypted.toString()).getResult());
-        assertEquals(OperationResult.SUCCESS, service.decryptFile(encrypted.toString(), decrypted.toString()).getResult());
+        CryptoResult decryptResult = service.decryptFile(encrypted.toString(), decrypted.toString());
 
+        assertEquals(OperationResult.SUCCESS, decryptResult.getResult());
+        assertEquals(decrypted.toString(), decryptResult.getOutputFilePath());
+        assertTrue(Files.exists(decrypted));
         assertArrayEquals(original, Files.readAllBytes(decrypted));
     }
 

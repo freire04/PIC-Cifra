@@ -76,10 +76,9 @@ public class FileEncryptionViewController {
             return;
         }
 
-        String name = outputFile.getName();
-        int lastDot = name.lastIndexOf('.');
-        String baseName = (lastDot == -1) ? name : name.substring(0, lastDot);
-        outputFile = new File(outputFile.getParent(), baseName + ".enc");
+        if (!outputFile.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".enc")) {
+            outputFile = new File(outputFile.getParent(), outputFile.getName() + ".enc");
+        }
         
         statusLabel.setText("Encrypting...");
         encryptButton.setDisable(true);
@@ -89,7 +88,7 @@ public class FileEncryptionViewController {
             outputFile.getAbsolutePath()
         );
 
-        showResult(result, outputFile);
+        showResult(result);
         encryptButton.setDisable(false);
     }
 
@@ -135,7 +134,7 @@ public class FileEncryptionViewController {
         });
     }
 
-    private void showResult(CryptoResult result, File outputFile) {
+    private void showResult(CryptoResult result) {
         if (result == null) {
             showError("No result returned.");
             return;

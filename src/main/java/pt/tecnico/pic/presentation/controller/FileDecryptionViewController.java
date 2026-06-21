@@ -1,6 +1,7 @@
 package pt.tecnico.pic.presentation.controller;
 
 import java.io.File;
+import java.util.Locale;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -67,10 +68,8 @@ public class FileDecryptionViewController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Save decrypted file");
         String suggestedName = FileUtils.suggestDecryptedFileName(selectedInputFile);
-        int lastDot = suggestedName.lastIndexOf('.');
-        String cleanName = (lastDot == -1) ? suggestedName : suggestedName.substring(0, lastDot);
-        fileChooser.setInitialFileName(cleanName);
-        
+        fileChooser.setInitialFileName(suggestedName);
+
         if (selectedInputFile != null && selectedInputFile.getParentFile() != null) {
             fileChooser.setInitialDirectory(selectedInputFile.getParentFile());
         } else {
@@ -82,7 +81,7 @@ public class FileDecryptionViewController {
             statusLabel.setText("Decryption cancelled.");
             return;
         }
-        
+
         statusLabel.setText("Decrypting...");
         decryptButton.setDisable(true);
 
@@ -108,8 +107,7 @@ public class FileDecryptionViewController {
     // --- LÓGICA DE SUPORTE À UI ---
 
     private void processSelectedFile(File file) {
-        // Proteção extra se o ficheiro não for .enc; em principio nem deve ser usado.
-        if (!file.getName().endsWith(".enc")) {
+        if (!isEncryptedFile(file)) {
             showError("Only .enc files are supported.");
             clearSelection();
             return;
@@ -124,11 +122,11 @@ public class FileDecryptionViewController {
     private void setupDragAndDrop() {
         dropArea.setOnDragOver(event -> {
             Dragboard db = event.getDragboard();
-            // MODIFICAÇÃO: Só aceita o arrastar se o ficheiro terminar em .enc
-            if (event.getGestureSource() != dropArea && db.hasFiles() && !db.getFiles().isEmpty()) {
-                if (db.getFiles().get(0).getName().endsWith(".enc")) {
-                    event.acceptTransferModes(javafx.scene.input.TransferMode.COPY);
-                }
+            if (event.getGestureSource() != dropArea
+                    && db.hasFiles()
+                    && db.getFiles().size() == 1
+                    && isEncryptedFile(db.getFiles().get(0))) {
+                event.acceptTransferModes(javafx.scene.input.TransferMode.COPY);
             }
             event.consume();
         });
@@ -137,14 +135,18 @@ public class FileDecryptionViewController {
             Dragboard db = event.getDragboard();
             boolean success = false;
 
-            if (db.hasFiles() && !db.getFiles().isEmpty()) {
+            if (db.hasFiles() && db.getFiles().size() == 1) {
                 File file = db.getFiles().get(0);
-                if (file.getName().endsWith(".enc")) {
+                if (isEncryptedFile(file)) {
                     processSelectedFile(file);
                     success = true;
                 } else {
                     showError("Only .enc files are supported.");
+                    clearSelection();
                 }
+            } else if (db.hasFiles()) {
+                showError("Select exactly one encrypted file.");
+                clearSelection();
             }
 
             event.setDropCompleted(success);
@@ -168,6 +170,12 @@ public class FileDecryptionViewController {
 
     private void showError(String message) {
         statusLabel.setText("Error: " + message);
+    }
+
+    private static boolean isEncryptedFile(File file) {
+        return file != null
+                && file.isFile()
+                && file.getName().toLowerCase(Locale.ROOT).endsWith(".enc");
     }
 
     public void clearSelection() {

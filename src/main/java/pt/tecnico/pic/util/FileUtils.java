@@ -10,26 +10,17 @@ public final class FileUtils {
     public static String suggestEncryptedFileName(File inputFile) {
         if (inputFile == null) return "";
         
-        String name = inputFile.getName();
-        int dotIndex = name.lastIndexOf('.');
-        
-        // Extrai o nome base (sem a extensão original)
-        String baseName = (dotIndex == -1) ? name : name.substring(0, dotIndex);
-        
-        // Força a extensão a ser SEMPRE .enc
-        return baseName + ".enc";
+        return inputFile.getName() + ".enc";
     }
 
     public static String suggestDecryptedFileName(File inputFile) {
         if (inputFile == null) return "";
-        
+
         String name = inputFile.getName();
-        // Se terminar em .enc, removemos apenas essa extensão
-        if (name.endsWith(".enc")) {
+        if (name.toLowerCase(java.util.Locale.ROOT).endsWith(".enc")) {
             return name.substring(0, name.length() - 4);
         }
-        
-        // Fallback caso metam um ficheiro sem .enc
+
         return name + ".dec";
     }
 

@@ -192,12 +192,7 @@ public class PKCS11Service implements CryptoService {
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, new GCMParameterSpec(GCM_TAG_BITS, iv));
             byte[] ciphertext = cipher.doFinal(plaintext);
 
-            // Obtém a extensão original (ex: ".txt")
-            String filename = input.getFileName().toString();
-            int dotIndex = filename.lastIndexOf('.');
-            String extension = (dotIndex == -1) ? "" : filename.substring(dotIndex);
-
-            writeEncryptedFile(output, iv, ciphertext, extension);
+            writeEncryptedFile(output, iv, ciphertext);
 
             return result(OperationResult.SUCCESS, "File encrypted successfully.", inputPath, outputPath,
                     ActionType.ENCRYPT_FILE);
@@ -216,11 +211,6 @@ public class PKCS11Service implements CryptoService {
 
     @Override
     public synchronized CryptoResult decryptFile(String inputPath, String outputPath) {
-        java.io.File fileOutput = new java.io.File(outputPath);
-        if (fileOutput.isDirectory()) {
-                return result(OperationResult.ERROR, "Output path cannot be a directory.", inputPath, outputPath, ActionType.DECRYPT_FILE);
-        }
-
         if (!isSessionOpen()) {
             return result(OperationResult.FAILED, "Token session is not open.", inputPath, outputPath,
                     ActionType.DECRYPT_FILE);
@@ -241,6 +231,11 @@ public class PKCS11Service implements CryptoService {
                     ActionType.DECRYPT_FILE);
         }
 
+        if (Files.isDirectory(output)) {
+            return result(OperationResult.ERROR, "Output path cannot be a directory.", inputPath, outputPath,
+                    ActionType.DECRYPT_FILE);
+        }
+
         if (isSameNormalizedPath(input, output)) {
             return result(OperationResult.FAILED, "Input and output files must be different.", inputPath, outputPath,
                     ActionType.DECRYPT_FILE);
@@ -254,21 +249,9 @@ public class PKCS11Service implements CryptoService {
             cipher.init(Cipher.DECRYPT_MODE, secretKey, new GCMParameterSpec(GCM_TAG_BITS, encryptedFile.iv()));
             plaintext = cipher.doFinal(encryptedFile.ciphertext());
 
-            // Garanta que o output herda a extensão original que foi guardada no cabeçalho
-            Path finalOutput = output;
-            String currentName = output.getFileName().toString();
-            String targetExt = encryptedFile.extension();
+            writePlainFile(output, plaintext);
 
-            if (!targetExt.isEmpty() && !currentName.endsWith(targetExt)) {
-                // Se o utilizador escreveu uma extensão diferente (ex: .dec), limpamos e forçamos a original (.txt)
-                int lastDot = currentName.lastIndexOf('.');
-                String baseName = (lastDot == -1) ? currentName : currentName.substring(0, lastDot);
-                finalOutput = output.resolveSibling(baseName + targetExt);
-            }
-
-            writePlainFile(finalOutput, plaintext);
-
-            return result(OperationResult.SUCCESS, "File decrypted successfully.", inputPath, finalOutput.toString(),
+            return result(OperationResult.SUCCESS, "File decrypted successfully.", inputPath, outputPath,
                     ActionType.DECRYPT_FILE);
         } catch (InvalidEncryptedFileException ex) {
             return result(OperationResult.FAILED, "Invalid encrypted file.", inputPath, outputPath,
@@ -314,18 +297,12 @@ public class PKCS11Service implements CryptoService {
         return generatedKey;
     }
 
-    private static void writeEncryptedFile(Path output, byte[] iv, byte[] ciphertext, String extension) throws IOException {
+    private static void writeEncryptedFile(Path output, byte[] iv, byte[] ciphertext) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         buffer.write(MAGIC);
         buffer.write(FORMAT_VERSION);
         buffer.write(iv.length);
         buffer.write(iv);
-
-        // Grava o tamanho da extensão e os seus bytes
-        byte[] extensionBytes = extension.getBytes(StandardCharsets.UTF_8);
-        buffer.write(extensionBytes.length);
-        buffer.write(extensionBytes);
-
         buffer.write(ciphertext);
 
         writePlainFile(output, buffer.toByteArray());
@@ -347,36 +324,18 @@ public class PKCS11Service implements CryptoService {
 
         int version = Byte.toUnsignedInt(bytes[MAGIC.length]);
         int ivLength = Byte.toUnsignedInt(bytes[MAGIC.length + 1]);
-        int currentOffset = headerLength;
+        int ciphertextOffset = headerLength + ivLength;
 
         if (version != FORMAT_VERSION
                 || ivLength <= 0
                 || ivLength > MAX_IV_BYTES
-                || bytes.length <= currentOffset + ivLength) {
+                || bytes.length <= ciphertextOffset) {
             throw new InvalidEncryptedFileException();
         }
 
-        byte[] iv = Arrays.copyOfRange(bytes, currentOffset, currentOffset + ivLength);
-        currentOffset += ivLength;
-
-        if (bytes.length <= currentOffset) {
-            throw new InvalidEncryptedFileException();
-        }
-
-        // Lê a extensão guardada no cabeçalho
-        int extensionLength = Byte.toUnsignedInt(bytes[currentOffset]);
-        currentOffset += 1;
-
-        if (bytes.length < currentOffset + extensionLength) {
-            throw new InvalidEncryptedFileException();
-        }
-
-        byte[] extensionBytes = Arrays.copyOfRange(bytes, currentOffset, currentOffset + extensionLength);
-        String extension = new String(extensionBytes, StandardCharsets.UTF_8);
-        currentOffset += extensionLength;
-
-        byte[] ciphertext = Arrays.copyOfRange(bytes, currentOffset, bytes.length);
-        return new EncryptedFile(iv, ciphertext, extension);
+        byte[] iv = Arrays.copyOfRange(bytes, headerLength, ciphertextOffset);
+        byte[] ciphertext = Arrays.copyOfRange(bytes, ciphertextOffset, bytes.length);
+        return new EncryptedFile(iv, ciphertext);
     }
 
     private static void writePlainFile(Path output, byte[] bytes) throws IOException {
@@ -449,7 +408,7 @@ public class PKCS11Service implements CryptoService {
         sessionOpen = false;
     }
 
-    private record EncryptedFile(byte[] iv, byte[] ciphertext, String extension) {
+    private record EncryptedFile(byte[] iv, byte[] ciphertext) {
     }
 
     private static class InvalidEncryptedFileException extends Exception {
