@@ -216,6 +216,11 @@ public class PKCS11Service implements CryptoService {
 
     @Override
     public synchronized CryptoResult decryptFile(String inputPath, String outputPath) {
+        java.io.File fileOutput = new java.io.File(outputPath);
+        if (fileOutput.isDirectory()) {
+                return result(OperationResult.ERROR, "Output path cannot be a directory.", inputPath, outputPath, ActionType.DECRYPT_FILE);
+        }
+
         if (!isSessionOpen()) {
             return result(OperationResult.FAILED, "Token session is not open.", inputPath, outputPath,
                     ActionType.DECRYPT_FILE);
