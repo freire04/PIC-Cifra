@@ -37,8 +37,6 @@ import pt.tecnico.pic.presentation.controller.RoleSelectionViewController;
  * Real FXML views and ViewControllers will replace this UI in later issues.
  */
 
-// TODO: call appController.logout() when session handling is implemented.
-
 public class SceneManager {
     private final Stage primaryStage;
     private final AppController appController;
@@ -225,8 +223,8 @@ public class SceneManager {
     }
     
     public void logout() {
-        // TODO (S1-10): call appController.logout().
-        // appController.logout();
+        appController.logout();
+        selectedRole = null;
         showLogin();
     }
 

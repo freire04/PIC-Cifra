@@ -3,6 +3,7 @@ package pt.tecnico.pic.presentation.controller;
 import java.io.File;
 import java.util.Locale;
 
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -85,13 +86,29 @@ public class FileDecryptionViewController {
         statusLabel.setText("Decrypting...");
         decryptButton.setDisable(true);
 
-        CryptoResult result = appController.decryptFile(
-            selectedInputFile.getAbsolutePath(),
-            outputFile.getAbsolutePath()
-        );
+        File inputFile = selectedInputFile;
+        Task<CryptoResult> decryptionTask = new Task<>() {
+            @Override
+            protected CryptoResult call() {
+                return appController.decryptFile(
+                        inputFile.getAbsolutePath(),
+                        outputFile.getAbsolutePath()
+                );
+            }
+        };
 
-        showResult(result);
-        decryptButton.setDisable(false);
+        decryptionTask.setOnSucceeded(event -> {
+            showResult(decryptionTask.getValue());
+            decryptButton.setDisable(selectedInputFile == null);
+        });
+        decryptionTask.setOnFailed(event -> {
+            showError("Decryption failed.");
+            decryptButton.setDisable(selectedInputFile == null);
+        });
+
+        Thread worker = new Thread(decryptionTask, "pic-file-decryption");
+        worker.setDaemon(true);
+        worker.start();
     }
 
     @FXML
