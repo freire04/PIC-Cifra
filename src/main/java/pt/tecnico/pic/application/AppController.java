@@ -11,6 +11,7 @@ import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.domain.Session;
 import pt.tecnico.pic.domain.UserContext;
 import pt.tecnico.pic.dto.AccountCreationResult;
+import pt.tecnico.pic.dto.AccountFilter;
 import pt.tecnico.pic.dto.AccountResult;
 import pt.tecnico.pic.dto.AccountSummary;
 import pt.tecnico.pic.dto.CreateAccountRequest;
@@ -245,43 +246,10 @@ public class AppController {
         );
     }
 
-    public CryptoResult encryptFile(String inputPath, String outputPath) {
-        if (!canUseCrypto()) {
-            return new CryptoResult(
-                    OperationResult.FAILED,
-                    cryptoAccessFailureMessage(),
-                    inputPath,
-                    outputPath,
-                    ActionType.ENCRYPT_FILE
-            );
-        }
+    public List<AccountSummary> getUsers(AccountFilter filter) {
+        if (!canManageAccounts()) return List.of();
 
-        return fileCryptoService.encryptFile(inputPath, outputPath, currentUserContext());
-    }
-
-    public CryptoResult decryptFile(String inputPath, String outputPath) {
-        if (!canUseCrypto()) {
-            return new CryptoResult(
-                    OperationResult.FAILED,
-                    cryptoAccessFailureMessage(),
-                    inputPath,
-                    outputPath,
-                    ActionType.DECRYPT_FILE
-            );
-        }
-
-        return fileCryptoService.decryptFile(inputPath, outputPath, currentUserContext());
-    }
-
-    public List<AccountSummary> getUsers() {
-        if (!canManageAccounts()) {
-            return List.of();
-        }
-
-        return accountService.listAccounts()
-                .stream()
-                .map(this::toAccountSummary)
-                .toList();
+        return accountService.searchAccounts(filter);
     }
 
     public AccountCreationResult createAccount(CreateAccountRequest request) {
@@ -418,6 +386,42 @@ public class AppController {
         return new AccountResult(passwordResult.getResult(), passwordResult.getMessage());
     }
 
+    public CryptoResult encryptFile(String inputPath, String outputPath) {
+        if (!canUseCrypto()) {
+            return new CryptoResult(
+                    OperationResult.FAILED,
+                    cryptoAccessFailureMessage(),
+                    inputPath,
+                    outputPath,
+                    ActionType.ENCRYPT_FILE
+            );
+        }
+
+        return fileCryptoService.encryptFile(inputPath, outputPath, currentUserContext());
+    }
+
+    public CryptoResult decryptFile(String inputPath, String outputPath) {
+        if (!canUseCrypto()) {
+            return new CryptoResult(
+                    OperationResult.FAILED,
+                    cryptoAccessFailureMessage(),
+                    inputPath,
+                    outputPath,
+                    ActionType.DECRYPT_FILE
+            );
+        }
+
+        return fileCryptoService.decryptFile(inputPath, outputPath, currentUserContext());
+    }
+
+    public List<AccountSummary> searchAccounts(AccountFilter filter) {
+        if (!canManageAccounts()) {
+            return List.of();
+        }
+        
+        return accountService.searchAccounts(filter);
+    }
+
     public AuditService getAuditService() {
         return auditService;
     }
@@ -474,16 +478,6 @@ public class AppController {
                 currentSession.getAccountId(),
                 currentSession.getUsername(),
                 currentSession.getSelectedRole()
-        );
-    }
-
-    private AccountSummary toAccountSummary(Account account) {
-        return new AccountSummary(
-                account.getId(),
-                account.getUsername(),
-                account.getRoles(),
-                account.isActive(),
-                account.mustChangePassword()
         );
     }
 
