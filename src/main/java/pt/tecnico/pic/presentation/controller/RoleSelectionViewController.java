@@ -38,12 +38,7 @@ public class RoleSelectionViewController {
 
     @FXML
     public void onLogoutClicked() {
-        OperationResult logoutResult = appController.logout();
-        if (logoutResult == OperationResult.SUCCESS) {
-            sceneManager.showLogin();
-        } else {
-            showError("Logout failed: " + logoutResult);
-        }
+        sceneManager.logout();
     }
 
     private void loadAvailableRoles() {

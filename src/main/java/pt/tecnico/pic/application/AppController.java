@@ -295,6 +295,10 @@ public class AppController {
                 result.getMessage()
         );
 
+        if (result.getResult() == OperationResult.SUCCESS && isCurrentAccount(accountId)) {
+            refreshCurrentSession();
+        }
+
         return result;
     }
 
@@ -303,7 +307,16 @@ public class AppController {
             return new PasswordResult(OperationResult.FAILED, "Only ADMIN can reset passwords.", null);
         }
 
-        PasswordResult result = accountService.resetPassword(accountId);
+        PasswordResult result;
+        if (isCurrentAccount(accountId)) {
+            result = new PasswordResult(
+                    OperationResult.FAILED,
+                    "Use Change Password to update your own password.",
+                    null
+            );
+        } else {
+            result = accountService.resetPassword(accountId);
+        }
 
         auditService.log(
                 currentSession.getAccountId(),
@@ -334,6 +347,10 @@ public class AppController {
                 result.getResult(),
                 result.getMessage()
         );
+
+        if (result.getResult() == OperationResult.SUCCESS && isCurrentAccount(accountId)) {
+            clearCurrentSession();
+        }
 
         return result;
     }
@@ -430,6 +447,14 @@ public class AppController {
         return fileCryptoService;
     }
 
+    public boolean hasActiveSession() {
+        return isLoggedIn();
+    }
+
+    public Role getSelectedRole() {
+        return isLoggedIn() ? currentSession.getSelectedRole() : null;
+    }
+
     private boolean isLoggedIn() {
         return currentSession != null;
     }
@@ -479,6 +504,42 @@ public class AppController {
                 currentSession.getUsername(),
                 currentSession.getSelectedRole()
         );
+    }
+
+    private boolean isCurrentAccount(int accountId) {
+        return isLoggedIn() && currentSession.getAccountId() == accountId;
+    }
+
+    private void refreshCurrentSession() {
+        if (!isLoggedIn()) {
+            return;
+        }
+
+        Role previouslySelectedRole = currentSession.getSelectedRole();
+        Account account = accountService.getAccountById(currentSession.getAccountId());
+
+        if (account == null || !account.isActive()) {
+            clearCurrentSession();
+            return;
+        }
+
+        Session refreshedSession = new Session(account.getId(), account.getUsername(), account.getRoles());
+        if (previouslySelectedRole != null && account.getRoles().contains(previouslySelectedRole)) {
+            refreshedSession.selectRole(previouslySelectedRole);
+        } else if (fileCryptoService.isTokenUnlocked()) {
+            fileCryptoService.lockToken();
+        }
+
+        currentSession = refreshedSession;
+        currentMustChangePassword = account.mustChangePassword();
+    }
+
+    private void clearCurrentSession() {
+        if (fileCryptoService.isTokenUnlocked()) {
+            fileCryptoService.lockToken();
+        }
+        currentSession = null;
+        currentMustChangePassword = false;
     }
 
 }

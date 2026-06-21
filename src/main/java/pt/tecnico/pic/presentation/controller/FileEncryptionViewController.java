@@ -2,6 +2,7 @@ package pt.tecnico.pic.presentation.controller;
 
 import java.io.File;
 
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -79,17 +80,39 @@ public class FileEncryptionViewController {
         if (!outputFile.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".enc")) {
             outputFile = new File(outputFile.getParent(), outputFile.getName() + ".enc");
         }
+
+        if (outputFile.exists()) {
+            showError("Output file already exists.");
+            return;
+        }
         
         statusLabel.setText("Encrypting...");
         encryptButton.setDisable(true);
 
-        CryptoResult result = appController.encryptFile(
-            selectedInputFile.getAbsolutePath(),
-            outputFile.getAbsolutePath()
-        );
+        File inputFile = selectedInputFile;
+        File finalOutputFile = outputFile;
+        Task<CryptoResult> encryptionTask = new Task<>() {
+            @Override
+            protected CryptoResult call() {
+                return appController.encryptFile(
+                        inputFile.getAbsolutePath(),
+                        finalOutputFile.getAbsolutePath()
+                );
+            }
+        };
 
-        showResult(result);
-        encryptButton.setDisable(false);
+        encryptionTask.setOnSucceeded(event -> {
+            showResult(encryptionTask.getValue());
+            encryptButton.setDisable(selectedInputFile == null);
+        });
+        encryptionTask.setOnFailed(event -> {
+            showError("Encryption failed.");
+            encryptButton.setDisable(selectedInputFile == null);
+        });
+
+        Thread worker = new Thread(encryptionTask, "pic-file-encryption");
+        worker.setDaemon(true);
+        worker.start();
     }
 
     @FXML

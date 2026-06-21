@@ -1,10 +1,12 @@
 package pt.tecnico.pic.dto;
 
+import java.util.Arrays;
+
 import pt.tecnico.pic.domain.OperationResult;
 
 public class PasswordResult {
     private final OperationResult result;
-    private final char[] temporaryPassword;
+    private char[] temporaryPassword;
     private final String message;
 
     public PasswordResult(OperationResult result, String message, char[] temporaryPassword) {
@@ -20,7 +22,14 @@ public class PasswordResult {
     }
 
     public char[] getTemporaryPassword() {
-        return temporaryPassword == null ? null : java.util.Arrays.copyOf(temporaryPassword, temporaryPassword.length);
+        return temporaryPassword == null ? null : Arrays.copyOf(temporaryPassword, temporaryPassword.length);
+    }
+
+    public void clearTemporaryPassword() {
+        if (temporaryPassword != null) {
+            Arrays.fill(temporaryPassword, '\0');
+            temporaryPassword = null;
+        }
     }
 
     public String getMessage() {
