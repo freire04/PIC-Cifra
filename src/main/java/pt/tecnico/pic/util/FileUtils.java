@@ -20,6 +20,19 @@ public final class FileUtils {
         return baseName + ".enc";
     }
 
+    public static String suggestDecryptedFileName(File inputFile) {
+        if (inputFile == null) return "";
+        
+        String name = inputFile.getName();
+        // Se terminar em .enc, removemos apenas essa extensão
+        if (name.endsWith(".enc")) {
+            return name.substring(0, name.length() - 4);
+        }
+        
+        // Fallback caso metam um ficheiro sem .enc
+        return name + ".dec";
+    }
+
     public static File getDefaultDirectory() {
         String home = System.getProperty("user.home");
         File downloads = new File(home, "Downloads");
