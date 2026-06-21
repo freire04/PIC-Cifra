@@ -152,7 +152,17 @@ public class SceneManager {
     }
 
     public void showEncryptionView() {
-        showFileCryptoPlaceholder(true);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/FileEncryptionView.fxml"));
+            FileEncryptionViewController controller = new FileEncryptionViewController(appController, this);
+            loader.setController(controller);
+            Parent root = loader.load();
+
+            setScene(root);
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load FileEncryptionView.fxml", e);
+        }
     }
 
     public void showDecryptionView() {
