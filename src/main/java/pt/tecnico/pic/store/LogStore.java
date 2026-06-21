@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,6 +38,8 @@ public class LogStore {
 
     private final Path logsFilePath;
 
+    private final AtomicInteger lastLogIdCounter = new AtomicInteger(0);
+
     public LogStore() {
         this("data/logs.ndjson");
     }
@@ -47,6 +50,25 @@ public class LogStore {
 
     public LogStore(Path logsFilePath) {
         this.logsFilePath = Objects.requireNonNull(logsFilePath, "logsFilePath must not be null");
+        this.initializeIdCounter();
+    }
+
+    private void initializeIdCounter() {
+            if (!Files.exists(logsFilePath)) {
+                lastLogIdCounter.set(0);
+                return;
+            }
+
+            try {
+                int maxId = findAll().stream()
+                        .mapToInt(Log::getLogId)
+                        .max()
+                        .orElse(0);
+
+                lastLogIdCounter.set(maxId);
+            } catch (Exception e) {
+                throw new LogStoreException("Failed to initialize log ID counter", e);
+            }
     }
 
     public synchronized void save(Log log) {
@@ -94,20 +116,29 @@ public class LogStore {
     }
 
     public synchronized List<Log> findByFilter(LogFilter filter) {
+        if (!Files.exists(logsFilePath)) {
+                return new ArrayList<>();
+        }
+        
         if (filter == null) {
             return findAll();
         }
 
-        return findAll().stream()
-                .filter(log -> matchesFilter(log, filter))
-                .toList();
+        // O try-with-resources garante que o Java fecha o ficheiro quando acabar de ler
+        try (var lines = Files.lines(logsFilePath, StandardCharsets.UTF_8)) {
+            
+            return lines.filter(line -> line != null && !line.isBlank())
+                        .map(LogStore::fromJson) 
+                        .filter(log -> matchesFilter(log, filter))
+                        .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+                    
+        } catch (IOException e) {
+            throw new LogStoreException("Failed to read audit logs via stream", e);
+        }
     }
 
     public synchronized int nextLogId() {
-        return findAll().stream()
-                .mapToInt(Log::getLogId)
-                .max()
-                .orElse(0) + 1;
+        return lastLogIdCounter.incrementAndGet();
     }
 
     public boolean logsFileExists() {
