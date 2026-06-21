@@ -11,12 +11,13 @@ import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.domain.Session;
 import pt.tecnico.pic.domain.UserContext;
 import pt.tecnico.pic.dto.AccountCreationResult;
-import pt.tecnico.pic.dto.AccountFilter;
 import pt.tecnico.pic.dto.AccountResult;
 import pt.tecnico.pic.dto.AccountSummary;
 import pt.tecnico.pic.dto.CreateAccountRequest;
 import pt.tecnico.pic.dto.CryptoResult;
 import pt.tecnico.pic.dto.LoginResult;
+import pt.tecnico.pic.dto.LogDTO;
+import pt.tecnico.pic.dto.LogFilter;
 import pt.tecnico.pic.dto.PasswordResult;
 import pt.tecnico.pic.dto.RoleSelectionResult;
 import pt.tecnico.pic.service.AccountService;
@@ -37,6 +38,7 @@ public class AppController {
 
     private Session currentSession;
     private boolean currentMustChangePassword;
+    private boolean viewLogsLoggedThisSession;
 
     public AppController() {
         this(new AccountService(), new AuditService());
@@ -87,6 +89,7 @@ public class AppController {
 
         currentSession = new Session(account.getId(), account.getUsername(), account.getRoles());
         currentMustChangePassword = account.mustChangePassword();
+        viewLogsLoggedThisSession = false;
 
         auditService.log(
                 account.getId(),
@@ -139,6 +142,7 @@ public class AppController {
 
         currentSession = null;
         currentMustChangePassword = false;
+        viewLogsLoggedThisSession = false;
 
         return result;
     }
@@ -215,6 +219,7 @@ public class AppController {
             }
 
             currentSession.selectRole(role);
+            viewLogsLoggedThisSession = false;
             // currentSession.unlockToken();
 
         } else {
@@ -224,6 +229,7 @@ public class AppController {
             }
 
             currentSession.selectRole(role);
+            viewLogsLoggedThisSession = false;
             // currentSession.lockToken();
         }
 
@@ -246,10 +252,43 @@ public class AppController {
         );
     }
 
-    public List<AccountSummary> getUsers(AccountFilter filter) {
-        if (!canManageAccounts()) return List.of();
+    public CryptoResult encryptFile(String inputPath, String outputPath) {
+        if (!canUseCrypto()) {
+            return new CryptoResult(
+                    OperationResult.FAILED,
+                    cryptoAccessFailureMessage(),
+                    inputPath,
+                    outputPath,
+                    ActionType.ENCRYPT_FILE
+            );
+        }
 
-        return accountService.searchAccounts(filter);
+        return fileCryptoService.encryptFile(inputPath, outputPath, currentUserContext());
+    }
+
+    public CryptoResult decryptFile(String inputPath, String outputPath) {
+        if (!canUseCrypto()) {
+            return new CryptoResult(
+                    OperationResult.FAILED,
+                    cryptoAccessFailureMessage(),
+                    inputPath,
+                    outputPath,
+                    ActionType.DECRYPT_FILE
+            );
+        }
+
+        return fileCryptoService.decryptFile(inputPath, outputPath, currentUserContext());
+    }
+
+    public List<AccountSummary> getUsers() {
+        if (!canManageAccounts()) {
+            return List.of();
+        }
+
+        return accountService.listAccounts()
+                .stream()
+                .map(this::toAccountSummary)
+                .toList();
     }
 
     public AccountCreationResult createAccount(CreateAccountRequest request) {
@@ -386,40 +425,36 @@ public class AppController {
         return new AccountResult(passwordResult.getResult(), passwordResult.getMessage());
     }
 
-    public CryptoResult encryptFile(String inputPath, String outputPath) {
-        if (!canUseCrypto()) {
-            return new CryptoResult(
+
+    public List<LogDTO> getAuditLogs(LogFilter filter) {
+        if (!canViewAuditLogs()) {
+            String message = auditLogsAccessFailureMessage();
+            auditService.log(
+                    currentSession == null ? null : currentSession.getAccountId(),
+                    currentSession == null ? null : currentSession.getUsername(),
+                    currentSession == null ? null : currentSession.getSelectedRole(),
+                    ActionType.VIEW_LOGS,
+                    null,
                     OperationResult.FAILED,
-                    cryptoAccessFailureMessage(),
-                    inputPath,
-                    outputPath,
-                    ActionType.ENCRYPT_FILE
+                    message
             );
-        }
-
-        return fileCryptoService.encryptFile(inputPath, outputPath, currentUserContext());
-    }
-
-    public CryptoResult decryptFile(String inputPath, String outputPath) {
-        if (!canUseCrypto()) {
-            return new CryptoResult(
-                    OperationResult.FAILED,
-                    cryptoAccessFailureMessage(),
-                    inputPath,
-                    outputPath,
-                    ActionType.DECRYPT_FILE
-            );
-        }
-
-        return fileCryptoService.decryptFile(inputPath, outputPath, currentUserContext());
-    }
-
-    public List<AccountSummary> searchAccounts(AccountFilter filter) {
-        if (!canManageAccounts()) {
             return List.of();
         }
-        
-        return accountService.searchAccounts(filter);
+
+        if (!viewLogsLoggedThisSession) {
+            auditService.log(
+                    currentSession.getAccountId(),
+                    currentSession.getUsername(),
+                    currentSession.getSelectedRole(),
+                    ActionType.VIEW_LOGS,
+                    null,
+                    OperationResult.SUCCESS,
+                    "Audit logs viewed."
+            );
+            viewLogsLoggedThisSession = true;
+        }
+
+        return auditService.getLogs(filter);
     }
 
     public AuditService getAuditService() {
@@ -436,6 +471,25 @@ public class AppController {
 
     private boolean hasSelectedRole(Role role) {
         return isLoggedIn() && currentSession.getSelectedRole() == role;
+    }
+
+
+    private boolean canViewAuditLogs() {
+        return isLoggedIn()
+                && !currentMustChangePassword
+                && hasSelectedRole(Role.AUDITOR);
+    }
+
+    private String auditLogsAccessFailureMessage() {
+        if (!isLoggedIn()) {
+            return "User is not logged in.";
+        }
+
+        if (currentMustChangePassword) {
+            return "Password must be changed before using the application.";
+        }
+
+        return "Only AUDITOR role can view audit logs.";
     }
 
     private boolean canManageAccounts() {
@@ -478,6 +532,16 @@ public class AppController {
                 currentSession.getAccountId(),
                 currentSession.getUsername(),
                 currentSession.getSelectedRole()
+        );
+    }
+
+    private AccountSummary toAccountSummary(Account account) {
+        return new AccountSummary(
+                account.getId(),
+                account.getUsername(),
+                account.getRoles(),
+                account.isActive(),
+                account.mustChangePassword()
         );
     }
 
