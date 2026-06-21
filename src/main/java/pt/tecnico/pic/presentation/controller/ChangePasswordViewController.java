@@ -3,6 +3,7 @@ package pt.tecnico.pic.presentation.controller;
 import java.util.Arrays;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import pt.tecnico.pic.application.AppController;
@@ -25,6 +26,8 @@ public class ChangePasswordViewController {
     private PasswordField confirmPasswordField;
     @FXML
     private Label errorLabel;
+    @FXML
+    private Button backButton;
 
     public ChangePasswordViewController(AppController appController, SceneManager sceneManager) {
         this(appController, sceneManager, true);
@@ -40,6 +43,7 @@ public class ChangePasswordViewController {
     public void initialize() {
         titleLabel.setText(mandatoryChange ? "Change Password Required" : "Change Password");
         errorLabel.setText("");
+        backButton.setVisible(!mandatoryChange);
     }
 
     @FXML
@@ -74,6 +78,11 @@ public class ChangePasswordViewController {
             Arrays.fill(newPassword, '\0');
             Arrays.fill(confirmPassword, '\0');
         }
+    }
+
+    @FXML
+    public void onBackClicked() {
+        sceneManager.showDashboard();
     }
 
     public void showError(String message) {
