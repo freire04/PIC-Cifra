@@ -1,15 +1,15 @@
 package pt.tecnico.pic.util;
 
 import java.io.File;
+import java.util.Locale;
 
 public final class FileUtils {
 
-    // Construtor privado para impedir instanciação
     private FileUtils() {}
 
     public static String suggestEncryptedFileName(File inputFile) {
         if (inputFile == null) return "";
-        
+
         return inputFile.getName() + ".enc";
     }
 
@@ -17,7 +17,7 @@ public final class FileUtils {
         if (inputFile == null) return "";
 
         String name = inputFile.getName();
-        if (name.toLowerCase(java.util.Locale.ROOT).endsWith(".enc")) {
+        if (name.toLowerCase(Locale.ROOT).endsWith(".enc")) {
             return name.substring(0, name.length() - 4);
         }
 
@@ -31,16 +31,20 @@ public final class FileUtils {
     }
 
     public static String formatSize(long bytes) {
-        if (bytes < 0) return "0 B"; // Salvaguarda para bytes negativos inválidos
+        if (bytes < 0) return "0 B";
         if (bytes < 1024) return bytes + " B";
-        
+
         double kb = bytes / 1024.0;
-        if (kb < 1024) return String.format("%.2f KB", kb);
-        
+        if (kb < 1024) {
+            return String.format(Locale.ROOT, "%.2f KB", kb);
+        }
+
         double mb = kb / 1024.0;
-        if (mb < 1024) return String.format("%.2f MB", mb);
-        
+        if (mb < 1024) {
+            return String.format(Locale.ROOT, "%.2f MB", mb);
+        }
+
         double gb = mb / 1024.0;
-        return String.format("%.2f GB", gb);
+        return String.format(Locale.ROOT, "%.2f GB", gb);
     }
 }

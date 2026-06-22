@@ -219,6 +219,12 @@ public class LogStore {
             return false;
         }
 
+        String filterFileName = PathSanitizer.toFileName(filter.getFileName());
+        if (filterFileName != null && !filterFileName.isBlank()
+                && !filterFileName.equals(log.getFileName())) {
+            return false;
+        }
+
         if (filter.getStartDate() != null && log.getTimestamp().isBefore(filter.getStartDate())) {
             return false;
         }

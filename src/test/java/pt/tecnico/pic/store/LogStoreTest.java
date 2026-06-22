@@ -427,4 +427,44 @@ class LogStoreTest {
         assertTrue(persisted.contains("password=[REDACTED]"));
         assertTrue(persisted.contains("report.pdf"));
     }
+
+    @Test
+    void findByFilterFiltersCorrectlyByFileName() {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        LogStore store = new LogStore(logsPath);
+
+        LocalDateTime now = LocalDateTime.of(2026, 6, 22, 12, 0);
+
+        store.save(new Log(1, 10, now, "alice", Role.USER,
+                ActionType.ENCRYPT_FILE, "report.pdf", OperationResult.SUCCESS, "ok"));
+        store.save(new Log(2, 10, now, "alice", Role.USER,
+                ActionType.ENCRYPT_FILE, "notes.txt", OperationResult.SUCCESS, "ok"));
+
+        LogFilter filter = new LogFilter();
+        filter.setFileName("report.pdf");
+
+        List<Log> result = store.findByFilter(filter);
+
+        assertEquals(1, result.size());
+        assertEquals("report.pdf", result.get(0).getFileName());
+    }
+
+    @Test
+    void findByFilterSanitizesFileNameFilter() {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        LogStore store = new LogStore(logsPath);
+
+        LocalDateTime now = LocalDateTime.of(2026, 6, 22, 12, 0);
+
+        store.save(new Log(1, 10, now, "alice", Role.USER,
+                ActionType.ENCRYPT_FILE, "report.pdf", OperationResult.SUCCESS, "ok"));
+
+        LogFilter filter = new LogFilter();
+        filter.setFileName("C:\\Users\\alice\\Desktop\\report.pdf");
+
+        List<Log> result = store.findByFilter(filter);
+
+        assertEquals(1, result.size());
+        assertEquals("report.pdf", result.get(0).getFileName());
+    }
 }
