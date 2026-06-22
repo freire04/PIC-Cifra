@@ -6,14 +6,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.Log;
@@ -30,15 +37,21 @@ import pt.tecnico.pic.util.PathSanitizer;
  * persisted by this class.
  */
 public class LogStore {
-    private static final Pattern SENSITIVE_VALUE_PATTERN =
-            Pattern.compile("(?i)\\b(password|pin|senha|key|chave)\\b\\s*[:=]\\s*\\S+");
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+            .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+
+    private static final Pattern SENSITIVE_VALUE_PATTERN = Pattern.compile(
+            "(?i)\\b(password|pin|senha|key|chave|secret|token)\\b\\s*[:=]\\s*"
+                    + "(?:\"(?:\\\\.|[^\"])*\"|'(?:\\\\.|[^'])*'|\\S+)"
+    );
 
     private static final Pattern PATH_TOKEN_PATTERN =
             Pattern.compile("\\S*[\\\\/]\\S+");
 
-    private final Path logsFilePath;
+    private static final ConcurrentMap<Path, StoreState> STORE_STATES = new ConcurrentHashMap<>();
 
-    private final AtomicInteger lastLogIdCounter = new AtomicInteger(0);
+    private final Path logsFilePath;
+    private final StoreState state;
 
     public LogStore() {
         this("data/logs.ndjson");
@@ -50,95 +63,94 @@ public class LogStore {
 
     public LogStore(Path logsFilePath) {
         this.logsFilePath = Objects.requireNonNull(logsFilePath, "logsFilePath must not be null");
-        this.initializeIdCounter();
+        Path stateKey = logsFilePath.toAbsolutePath().normalize();
+        this.state = STORE_STATES.computeIfAbsent(stateKey, ignored -> new StoreState());
+
+        synchronized (state.lock) {
+            initializeState();
+        }
     }
 
-    private void initializeIdCounter() {
-            if (!Files.exists(logsFilePath)) {
-                lastLogIdCounter.set(0);
-                return;
-            }
-
-            try {
-                int maxId = findAll().stream()
-                        .mapToInt(Log::getLogId)
-                        .max()
-                        .orElse(0);
-
-                lastLogIdCounter.set(maxId);
-            } catch (Exception e) {
-                throw new LogStoreException("Failed to initialize log ID counter", e);
-            }
-    }
-
-    public synchronized void save(Log log) {
+    public void save(Log log) {
         Objects.requireNonNull(log, "log must not be null");
+        validateLog(log);
 
         Log safeLog = sanitizeLog(log);
         String line = toJson(safeLog) + System.lineSeparator();
 
-        try {
-            Path parent = logsFilePath.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
+        synchronized (state.lock) {
+            if (state.persistedLogIds.contains(safeLog.getLogId())) {
+                throw new LogStoreException("Audit log ID already exists: " + safeLog.getLogId());
             }
 
-            Files.writeString(
-                    logsFilePath,
-                    line,
-                    StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.APPEND
-            );
-        } catch (IOException e) {
-            throw new LogStoreException("Failed to write audit log", e);
-        }
-    }
-
-    public synchronized List<Log> findAll() {
-        if (!Files.exists(logsFilePath)) {
-            return new ArrayList<>();
-        }
-
-        try {
-            List<Log> logs = new ArrayList<>();
-            for (String line : Files.readAllLines(logsFilePath, StandardCharsets.UTF_8)) {
-                if (line == null || line.isBlank()) {
-                    continue;
+            try {
+                Path parent = logsFilePath.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
                 }
-                logs.add(fromJson(line));
+
+                Files.writeString(
+                        logsFilePath,
+                        line,
+                        StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.WRITE,
+                        StandardOpenOption.APPEND
+                );
+                state.persistedLogIds.add(safeLog.getLogId());
+                state.lastIssuedLogId = Math.max(state.lastIssuedLogId, safeLog.getLogId());
+            } catch (IOException e) {
+                throw new LogStoreException("Failed to write audit log", e);
             }
-            return logs;
-        } catch (IOException e) {
-            throw new LogStoreException("Failed to read audit logs", e);
         }
     }
 
-    public synchronized List<Log> findByFilter(LogFilter filter) {
-        if (!Files.exists(logsFilePath)) {
+    public List<Log> findAll() {
+        synchronized (state.lock) {
+            if (!Files.exists(logsFilePath)) {
                 return new ArrayList<>();
+            }
+
+            try {
+                List<Log> logs = new ArrayList<>();
+                for (String line : Files.readAllLines(logsFilePath, StandardCharsets.UTF_8)) {
+                    if (!line.isBlank()) {
+                        logs.add(fromJson(line));
+                    }
+                }
+                return logs;
+            } catch (IOException e) {
+                throw new LogStoreException("Failed to read audit logs", e);
+            }
         }
-        
+    }
+
+    public List<Log> findByFilter(LogFilter filter) {
         if (filter == null) {
             return findAll();
         }
 
-        // O try-with-resources garante que o Java fecha o ficheiro quando acabar de ler
-        try (var lines = Files.lines(logsFilePath, StandardCharsets.UTF_8)) {
-            
-            return lines.filter(line -> line != null && !line.isBlank())
-                        .map(LogStore::fromJson) 
+        synchronized (state.lock) {
+            if (!Files.exists(logsFilePath)) {
+                return new ArrayList<>();
+            }
+
+            try (var lines = Files.lines(logsFilePath, StandardCharsets.UTF_8)) {
+                return lines
+                        .filter(line -> !line.isBlank())
+                        .map(LogStore::fromJson)
                         .filter(log -> matchesFilter(log, filter))
                         .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-                    
-        } catch (IOException e) {
-            throw new LogStoreException("Failed to read audit logs via stream", e);
+            } catch (IOException e) {
+                throw new LogStoreException("Failed to read audit logs", e);
+            }
         }
     }
 
-    public synchronized int nextLogId() {
-        return lastLogIdCounter.incrementAndGet();
+    public int nextLogId() {
+        synchronized (state.lock) {
+            return ++state.lastIssuedLogId;
+        }
     }
 
     public boolean logsFileExists() {
@@ -147,6 +159,46 @@ public class LogStore {
 
     public Path getLogsFilePath() {
         return logsFilePath;
+    }
+
+    private void initializeState() {
+        if (!Files.exists(logsFilePath)) {
+            return;
+        }
+
+        Set<Integer> persistedIds = new HashSet<>();
+        int maxId = 0;
+
+        try {
+            for (String line : Files.readAllLines(logsFilePath, StandardCharsets.UTF_8)) {
+                if (line.isBlank()) {
+                    continue;
+                }
+
+                Log log = fromJson(line);
+                if (!persistedIds.add(log.getLogId())) {
+                    throw new LogStoreException("Duplicate audit log ID: " + log.getLogId());
+                }
+                maxId = Math.max(maxId, log.getLogId());
+            }
+        } catch (IOException e) {
+            throw new LogStoreException("Failed to initialize log ID counter", e);
+        } catch (LogStoreException e) {
+            throw new LogStoreException("Failed to initialize log ID counter", e);
+        }
+
+        state.persistedLogIds.clear();
+        state.persistedLogIds.addAll(persistedIds);
+        state.lastIssuedLogId = Math.max(state.lastIssuedLogId, maxId);
+    }
+
+    private static void validateLog(Log log) {
+        if (log.getLogId() <= 0) {
+            throw new IllegalArgumentException("logId must be greater than zero");
+        }
+        Objects.requireNonNull(log.getTimestamp(), "timestamp must not be null");
+        Objects.requireNonNull(log.getAction(), "actionType must not be null");
+        Objects.requireNonNull(log.getResult(), "result must not be null");
     }
 
     private static boolean matchesFilter(Log log, LogFilter filter) {
@@ -193,8 +245,9 @@ public class LogStore {
             return message;
         }
 
+        String firstLine = message.lines().findFirst().orElse("");
         String withoutSensitiveValues = SENSITIVE_VALUE_PATTERN
-                .matcher(message)
+                .matcher(firstLine)
                 .replaceAll("$1=[REDACTED]");
 
         Matcher matcher = PATH_TOKEN_PATTERN.matcher(withoutSensitiveValues);
@@ -213,216 +266,117 @@ public class LogStore {
     }
 
     private static String toJson(Log log) {
-        StringBuilder json = new StringBuilder();
-        json.append('{');
-        appendNumber(json, "logId", log.getLogId());
-        appendNullableNumber(json, "accountId", log.getAccountId());
-        appendString(json, "timestamp", log.getTimestamp() == null ? null : log.getTimestamp().toString());
-        appendString(json, "username", log.getUsername());
-        appendString(json, "actorRole", log.getActorRole() == null ? null : log.getActorRole().name());
-        appendString(json, "actionType", log.getAction() == null ? null : log.getAction().name());
-        appendString(json, "fileName", log.getFileName());
-        appendString(json, "result", log.getResult() == null ? null : log.getResult().name());
-        appendString(json, "message", log.getMessage());
-        json.append('}');
-        return json.toString();
+        ObjectNode json = OBJECT_MAPPER.createObjectNode();
+        json.put("logId", log.getLogId());
+        putNullableInteger(json, "accountId", log.getAccountId());
+        json.put("timestamp", log.getTimestamp().toString());
+        putNullableText(json, "username", log.getUsername());
+        putNullableText(json, "actorRole", log.getActorRole() == null ? null : log.getActorRole().name());
+        json.put("actionType", log.getAction().name());
+        putNullableText(json, "fileName", log.getFileName());
+        json.put("result", log.getResult().name());
+        putNullableText(json, "message", log.getMessage());
+
+        try {
+            return OBJECT_MAPPER.writeValueAsString(json);
+        } catch (IOException e) {
+            throw new LogStoreException("Failed to serialize audit log", e);
+        }
     }
 
     private static Log fromJson(String line) {
         try {
-            Map<String, String> fields = parseJsonObject(line);
+            JsonNode json = OBJECT_MAPPER.readTree(line);
+            if (json == null || !json.isObject()) {
+                throw new IllegalArgumentException("Audit log line must be a JSON object");
+            }
+
+            int logId = requiredPositiveInt(json, "logId");
+            LocalDateTime timestamp = LocalDateTime.parse(requiredText(json, "timestamp"));
+            ActionType action = parseEnum(ActionType.class, requiredText(json, "actionType"));
+            OperationResult result = parseEnum(OperationResult.class, requiredText(json, "result"));
+
             return new Log(
-                    Integer.parseInt(required(fields, "logId")),
-                    parseInteger(fields.get("accountId")),
-                    LocalDateTime.parse(required(fields, "timestamp")),
-                    fields.get("username"),
-                    parseEnum(Role.class, fields.get("actorRole")),
-                    parseEnum(ActionType.class, required(fields, "actionType")),
-                    fields.get("fileName"),
-                    parseEnum(OperationResult.class, required(fields, "result")),
-                    fields.get("message")
+                    logId,
+                    nullableInteger(json, "accountId"),
+                    timestamp,
+                    nullableText(json, "username"),
+                    parseNullableEnum(Role.class, nullableText(json, "actorRole")),
+                    action,
+                    nullableText(json, "fileName"),
+                    result,
+                    nullableText(json, "message")
             );
-        } catch (RuntimeException e) {
+        } catch (IOException | DateTimeParseException | IllegalArgumentException e) {
             throw new LogStoreException("Failed to parse audit log line", e);
         }
     }
 
-    private static String required(Map<String, String> fields, String key) {
-        String value = fields.get(key);
-        if (value == null) {
-            throw new IllegalArgumentException("Missing required audit log field: " + key);
+    private static int requiredPositiveInt(JsonNode json, String fieldName) {
+        JsonNode value = json.get(fieldName);
+        if (value == null || !value.isIntegralNumber() || !value.canConvertToInt() || value.intValue() <= 0) {
+            throw new IllegalArgumentException("Invalid required audit log field: " + fieldName);
+        }
+        return value.intValue();
+    }
+
+    private static Integer nullableInteger(JsonNode json, String fieldName) {
+        JsonNode value = json.get(fieldName);
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        if (!value.isIntegralNumber() || !value.canConvertToInt()) {
+            throw new IllegalArgumentException("Invalid audit log field: " + fieldName);
+        }
+        return value.intValue();
+    }
+
+    private static String requiredText(JsonNode json, String fieldName) {
+        String value = nullableText(json, fieldName);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("Missing required audit log field: " + fieldName);
         }
         return value;
     }
 
-    private static Integer parseInteger(String value) {
-        return value == null ? null : Integer.valueOf(value);
+    private static String nullableText(JsonNode json, String fieldName) {
+        JsonNode value = json.get(fieldName);
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        if (!value.isTextual()) {
+            throw new IllegalArgumentException("Invalid audit log field: " + fieldName);
+        }
+        return value.textValue();
     }
 
     private static <E extends Enum<E>> E parseEnum(Class<E> type, String value) {
-        return value == null ? null : Enum.valueOf(type, value);
+        return Enum.valueOf(type, value);
     }
 
-    private static void appendNumber(StringBuilder json, String key, int value) {
-        appendCommaIfNeeded(json);
-        json.append(quote(key)).append(':').append(value);
+    private static <E extends Enum<E>> E parseNullableEnum(Class<E> type, String value) {
+        return value == null ? null : parseEnum(type, value);
     }
 
-    private static void appendNullableNumber(StringBuilder json, String key, Integer value) {
-        appendCommaIfNeeded(json);
-        json.append(quote(key)).append(':');
+    private static void putNullableInteger(ObjectNode json, String fieldName, Integer value) {
         if (value == null) {
-            json.append("null");
+            json.putNull(fieldName);
         } else {
-            json.append(value);
+            json.put(fieldName, value);
         }
     }
 
-    private static void appendString(StringBuilder json, String key, String value) {
-        appendCommaIfNeeded(json);
-        json.append(quote(key)).append(':');
+    private static void putNullableText(ObjectNode json, String fieldName, String value) {
         if (value == null) {
-            json.append("null");
+            json.putNull(fieldName);
         } else {
-            json.append(quote(value));
+            json.put(fieldName, value);
         }
     }
 
-    private static void appendCommaIfNeeded(StringBuilder json) {
-        if (json.length() > 1 && json.charAt(json.length() - 1) != '{') {
-            json.append(',');
-        }
+    private static final class StoreState {
+        private final Object lock = new Object();
+        private final Set<Integer> persistedLogIds = new HashSet<>();
+        private int lastIssuedLogId;
     }
-
-    private static String quote(String value) {
-        return '"' + escapeJson(value) + '"';
-    }
-
-    private static String escapeJson(String value) {
-        StringBuilder escaped = new StringBuilder();
-        for (int i = 0; i < value.length(); i++) {
-            char c = value.charAt(i);
-            switch (c) {
-                case '"' -> escaped.append("\\\"");
-                case '\\' -> escaped.append("\\\\");
-                case '\b' -> escaped.append("\\b");
-                case '\f' -> escaped.append("\\f");
-                case '\n' -> escaped.append("\\n");
-                case '\r' -> escaped.append("\\r");
-                case '\t' -> escaped.append("\\t");
-                default -> {
-                    if (c < 0x20) {
-                        escaped.append(String.format("\\u%04x", (int) c));
-                    } else {
-                        escaped.append(c);
-                    }
-                }
-            }
-        }
-        return escaped.toString();
-    }
-
-    private static Map<String, String> parseJsonObject(String json) {
-        String trimmed = json.trim();
-        if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
-            throw new IllegalArgumentException("Invalid JSON object");
-        }
-
-        Map<String, String> fields = new LinkedHashMap<>();
-        int index = 1;
-        int end = trimmed.length() - 1;
-
-        while (index < end) {
-            index = skipWhitespace(trimmed, index);
-            if (index < end && trimmed.charAt(index) == ',') {
-                index++;
-                index = skipWhitespace(trimmed, index);
-            }
-            if (index >= end) {
-                break;
-            }
-
-            ParsedString key = parseJsonString(trimmed, index);
-            index = skipWhitespace(trimmed, key.nextIndex());
-            if (index >= end || trimmed.charAt(index) != ':') {
-                throw new IllegalArgumentException("Missing ':' after JSON key");
-            }
-            index++;
-            index = skipWhitespace(trimmed, index);
-
-            String value;
-            if (trimmed.charAt(index) == '"') {
-                ParsedString parsedValue = parseJsonString(trimmed, index);
-                value = parsedValue.value();
-                index = parsedValue.nextIndex();
-            } else {
-                int valueStart = index;
-                while (index < end && trimmed.charAt(index) != ',') {
-                    index++;
-                }
-                String rawValue = trimmed.substring(valueStart, index).trim();
-                value = "null".equals(rawValue) ? null : rawValue;
-            }
-
-            fields.put(key.value(), value);
-        }
-
-        return fields;
-    }
-
-    private static ParsedString parseJsonString(String json, int startIndex) {
-        if (json.charAt(startIndex) != '"') {
-            throw new IllegalArgumentException("Expected JSON string");
-        }
-
-        StringBuilder value = new StringBuilder();
-        int index = startIndex + 1;
-        while (index < json.length()) {
-            char c = json.charAt(index++);
-            if (c == '"') {
-                return new ParsedString(value.toString(), index);
-            }
-
-            if (c != '\\') {
-                value.append(c);
-                continue;
-            }
-
-            if (index >= json.length()) {
-                throw new IllegalArgumentException("Invalid JSON escape");
-            }
-
-            char escaped = json.charAt(index++);
-            switch (escaped) {
-                case '"' -> value.append('"');
-                case '\\' -> value.append('\\');
-                case '/' -> value.append('/');
-                case 'b' -> value.append('\b');
-                case 'f' -> value.append('\f');
-                case 'n' -> value.append('\n');
-                case 'r' -> value.append('\r');
-                case 't' -> value.append('\t');
-                case 'u' -> {
-                    if (index + 4 > json.length()) {
-                        throw new IllegalArgumentException("Invalid unicode escape");
-                    }
-                    String hex = json.substring(index, index + 4);
-                    value.append((char) Integer.parseInt(hex, 16));
-                    index += 4;
-                }
-                default -> throw new IllegalArgumentException("Unsupported JSON escape: " + escaped);
-            }
-        }
-
-        throw new IllegalArgumentException("Unterminated JSON string");
-    }
-
-    private static int skipWhitespace(String value, int index) {
-        while (index < value.length() && Character.isWhitespace(value.charAt(index))) {
-            index++;
-        }
-        return index;
-    }
-
-    private record ParsedString(String value, int nextIndex) {}
 }

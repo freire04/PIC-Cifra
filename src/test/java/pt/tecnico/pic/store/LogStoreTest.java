@@ -4,10 +4,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
@@ -95,6 +104,12 @@ class LogStoreTest {
         List<Log> resError = store.findByFilter(filterError);
         assertEquals(1, resError.size());
         assertEquals("charlie", resError.get(0).getUsername());
+
+        LogFilter filterRole = new LogFilter();
+        filterRole.setActorRole(Role.ADMIN);
+        List<Log> resRole = store.findByFilter(filterRole);
+        assertEquals(2, resRole.size());
+        assertTrue(resRole.stream().allMatch(log -> log.getActorRole() == Role.ADMIN));
     }
 
     @Test
@@ -235,8 +250,181 @@ class LogStoreTest {
         // Deve conter os tokens sanitizados
         assertTrue(ndjsonContent.contains("unsafe_file.txt"));
         assertFalse(ndjsonContent.contains("/var/tmp/"));
-        
+
         assertTrue(ndjsonContent.contains("senha=[REDACTED]"));
         assertFalse(ndjsonContent.contains("minhasenha123"));
+    }
+
+    @Test
+    void saveAppendsOneValidJsonObjectPerLine() throws Exception {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        LogStore store = new LogStore(logsPath);
+        ObjectMapper objectMapper = new ObjectMapper();
+        LocalDateTime timestamp = LocalDateTime.of(2026, 6, 22, 10, 30);
+
+        store.save(new Log(1, 10, timestamp, "alice", null, ActionType.LOGIN,
+                null, OperationResult.SUCCESS, "ok"));
+        store.save(new Log(2, 10, timestamp.plusMinutes(1), "alice", Role.USER,
+                ActionType.ENCRYPT_FILE, "report.pdf", OperationResult.SUCCESS, "encrypted"));
+        store.save(new Log(3, null, timestamp.plusMinutes(2), null, null, ActionType.LOGIN,
+                null, OperationResult.FAILED, "invalid credentials"));
+
+        List<String> lines = Files.readAllLines(logsPath);
+        assertEquals(3, lines.size());
+
+        for (String line : lines) {
+            JsonNode json = objectMapper.readTree(line);
+            assertTrue(json.isObject());
+            assertTrue(json.has("logId"));
+            assertTrue(json.has("accountId"));
+            assertTrue(json.has("timestamp"));
+            assertTrue(json.has("actorRole"));
+            assertTrue(json.has("actionType"));
+            assertTrue(json.has("fileName"));
+            assertTrue(json.has("result"));
+            assertTrue(json.has("message"));
+        }
+    }
+
+    @Test
+    void duplicateIdsAreRejectedAcrossStoreInstances() {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        LogStore firstStore = new LogStore(logsPath);
+        LogStore secondStore = new LogStore(logsPath);
+        LocalDateTime timestamp = LocalDateTime.now();
+
+        firstStore.save(new Log(1, 10, timestamp, "alice", Role.USER, ActionType.LOGIN,
+                null, OperationResult.SUCCESS, "ok"));
+
+        assertThrows(LogStoreException.class, () -> secondStore.save(
+                new Log(1, 11, timestamp, "bob", Role.ADMIN, ActionType.LOGIN,
+                        null, OperationResult.SUCCESS, "ok")
+        ));
+        assertEquals(1, firstStore.findAll().size());
+    }
+
+    @Test
+    void differentInstancesShareTheSameIdSequence() {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        LogStore firstStore = new LogStore(logsPath);
+        LogStore secondStore = new LogStore(logsPath);
+
+        assertEquals(1, firstStore.nextLogId());
+        assertEquals(2, secondStore.nextLogId());
+        assertEquals(3, firstStore.nextLogId());
+    }
+
+    @Test
+    void concurrentInstancesGenerateUniqueIds() throws Exception {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        LogStore firstStore = new LogStore(logsPath);
+        LogStore secondStore = new LogStore(logsPath);
+        ExecutorService executor = Executors.newFixedThreadPool(8);
+        Set<Integer> generatedIds = ConcurrentHashMap.newKeySet();
+
+        for (int i = 0; i < 200; i++) {
+            LogStore selectedStore = i % 2 == 0 ? firstStore : secondStore;
+            executor.submit(() -> generatedIds.add(selectedStore.nextLogId()));
+        }
+
+        executor.shutdown();
+        assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+        assertEquals(200, generatedIds.size());
+        assertEquals(1, generatedIds.stream().mapToInt(Integer::intValue).min().orElseThrow());
+        assertEquals(200, generatedIds.stream().mapToInt(Integer::intValue).max().orElseThrow());
+    }
+
+    @Test
+    void savingExplicitIdAdvancesNextIdCounter() {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        LogStore store = new LogStore(logsPath);
+
+        store.save(new Log(20, 10, LocalDateTime.now(), "alice", Role.USER, ActionType.LOGIN,
+                null, OperationResult.SUCCESS, "ok"));
+
+        assertEquals(21, store.nextLogId());
+    }
+
+    @Test
+    void saveRejectsInvalidRequiredFieldsBeforeWriting() {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        LogStore store = new LogStore(logsPath);
+        LocalDateTime timestamp = LocalDateTime.now();
+
+        assertThrows(IllegalArgumentException.class, () -> store.save(
+                new Log(0, 10, timestamp, "alice", Role.USER, ActionType.LOGIN,
+                        null, OperationResult.SUCCESS, "ok")
+        ));
+        assertThrows(NullPointerException.class, () -> store.save(
+                new Log(1, 10, null, "alice", Role.USER, ActionType.LOGIN,
+                        null, OperationResult.SUCCESS, "ok")
+        ));
+        assertThrows(NullPointerException.class, () -> store.save(
+                new Log(1, 10, timestamp, "alice", Role.USER, null,
+                        null, OperationResult.SUCCESS, "ok")
+        ));
+        assertThrows(NullPointerException.class, () -> store.save(
+                new Log(1, 10, timestamp, "alice", Role.USER, ActionType.LOGIN,
+                        null, null, "ok")
+        ));
+
+        assertFalse(Files.exists(logsPath));
+    }
+
+    @Test
+    void constructorRejectsDuplicateIdsAlreadyPresentOnDisk() throws Exception {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        String timestamp = LocalDateTime.of(2026, 6, 22, 12, 0).toString();
+        String firstLine = """
+                {"logId":1,"accountId":10,"timestamp":"%s","username":"alice","actorRole":"USER","actionType":"LOGIN","fileName":null,"result":"SUCCESS","message":"ok"}
+                """.formatted(timestamp).trim();
+        String secondLine = firstLine.replace("\"alice\"", "\"bob\"");
+        Files.writeString(logsPath, firstLine + System.lineSeparator() + secondLine);
+
+        assertThrows(LogStoreException.class, () -> new LogStore(logsPath));
+    }
+
+    @Test
+    void jsonRoundTripPreservesUnicodeAndEscapedCharacters() {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        LogStore store = new LogStore(logsPath);
+        String username = "utilizador-\u00e7";
+        String message = "Ficheiro \"relat\u00f3rio\" processado com tab\t.";
+
+        store.save(new Log(1, null, LocalDateTime.now(), username, null, ActionType.LOGIN,
+                null, OperationResult.SUCCESS, message));
+
+        Log loaded = store.findAll().getFirst();
+        assertEquals(username, loaded.getUsername());
+        assertEquals(message, loaded.getMessage());
+        assertNull(loaded.getAccountId());
+        assertNull(loaded.getActorRole());
+    }
+
+    @Test
+    void sanitizationRedactsQuotedSecretsAndRemovesStackTraceLines() throws Exception {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        LogStore store = new LogStore(logsPath);
+
+        store.save(new Log(
+                1,
+                10,
+                LocalDateTime.now(),
+                "alice",
+                Role.USER,
+                ActionType.ENCRYPT_FILE,
+                "C:\\Users\\alice\\report.pdf",
+                OperationResult.ERROR,
+                "password=\"very secret\" failed at C:\\Users\\alice\\report.pdf"
+                        + System.lineSeparator()
+                        + "java.lang.IllegalStateException: internal detail"
+        ));
+
+        String persisted = Files.readString(logsPath);
+        assertFalse(persisted.contains("very secret"));
+        assertFalse(persisted.contains("C:\\Users\\alice"));
+        assertFalse(persisted.contains("IllegalStateException"));
+        assertTrue(persisted.contains("password=[REDACTED]"));
+        assertTrue(persisted.contains("report.pdf"));
     }
 }
