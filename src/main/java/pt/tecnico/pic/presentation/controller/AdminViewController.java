@@ -257,7 +257,13 @@ public class AdminViewController {
             if (button == saveButtonType) {
                 AccountResult result = appController.updateUserRoles(account.getAccountId(), roleSelector.selectedRoles());
                 showResult(result);
-                loadUsers();
+                if (result.getResult() == OperationResult.SUCCESS
+                        && appController.getSelectedRole() != Role.ADMIN) {
+                    sceneManager.setSelectedRole(null);
+                    sceneManager.showRoleSelection();
+                } else {
+                    loadUsers();
+                }
             } else if (button == resetButtonType) {
                 resetPassword(account);
             } else if (button == toggleActiveButtonType) {
@@ -289,6 +295,7 @@ public class AdminViewController {
             }
             loadUsers();
         } finally {
+            result.clearTemporaryPassword();
             if (temporaryPassword != null) {
                 Arrays.fill(temporaryPassword, '\0');
             }
@@ -301,7 +308,12 @@ public class AdminViewController {
                 : appController.enableAccount(account.getAccountId());
 
         showResult(result);
-        loadUsers();
+        if (result.getResult() == OperationResult.SUCCESS && !appController.hasActiveSession()) {
+            sceneManager.setSelectedRole(null);
+            sceneManager.showLogin();
+        } else {
+            loadUsers();
+        }
     }
 
     private void showSuccess(String message) {

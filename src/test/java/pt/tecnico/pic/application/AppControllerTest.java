@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -379,6 +381,56 @@ class AppControllerTest {
 
         assertEquals(OperationResult.SUCCESS, logout);
         assertTrue(fixture.controller.getAvailableRoles().isEmpty());
+    }
+
+    @Test
+    void removingOwnAdminRoleShouldRefreshCurrentSession() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
+        fixture.accountService.createAccount("backup-admin", Set.of(Role.ADMIN));
+
+        loginAsAdmin(fixture, new String(admin.getTemporaryPassword()));
+
+        AccountResult result = fixture.controller.updateUserRoles(admin.getAccountId(), Set.of(Role.USER));
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+        assertNull(fixture.controller.getSelectedRole());
+        assertEquals(Set.of(Role.USER), fixture.controller.getAvailableRoles());
+        assertEquals(
+                OperationResult.FAILED,
+                fixture.controller.createAccount(
+                        new CreateAccountRequest("blocked-after-role-change", Set.of(Role.USER))
+                ).getResult()
+        );
+    }
+
+    @Test
+    void disablingOwnAccountShouldClearCurrentSession() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
+        fixture.accountService.createAccount("backup-admin", Set.of(Role.ADMIN));
+
+        loginAsAdmin(fixture, new String(admin.getTemporaryPassword()));
+
+        AccountResult result = fixture.controller.disableAccount(admin.getAccountId());
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+        assertFalse(fixture.controller.hasActiveSession());
+        assertTrue(fixture.controller.getAvailableRoles().isEmpty());
+    }
+
+    @Test
+    void adminShouldNotResetOwnPasswordAdministratively() {
+        TestFixture fixture = newFixture();
+        AccountCreationResult admin = fixture.accountService.createAccount("admin", Set.of(Role.ADMIN));
+
+        loginAsAdmin(fixture, new String(admin.getTemporaryPassword()));
+
+        PasswordResult result = fixture.controller.resetPassword(admin.getAccountId());
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+        assertNull(result.getTemporaryPassword());
+        assertTrue(fixture.controller.hasActiveSession());
     }
 
     private void loginAsAdmin(TestFixture fixture, String password) {
