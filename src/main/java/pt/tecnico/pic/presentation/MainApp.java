@@ -46,7 +46,9 @@ public class MainApp extends Application {
 
     @Override
     public void stop() {
-        // fechar recursos, guardar estado, etc. se necessário
+        if (appController != null && appController.hasActiveSession()) {
+            appController.logout();
+        }
     }
 
     public static void main(String[] args) {

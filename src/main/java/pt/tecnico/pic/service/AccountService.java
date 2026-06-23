@@ -1,5 +1,6 @@
 package pt.tecnico.pic.service;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -9,7 +10,10 @@ import pt.tecnico.pic.domain.Account;
 import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.dto.AccountCreationResult;
+import pt.tecnico.pic.dto.AccountFilter;
 import pt.tecnico.pic.dto.AccountResult;
+import pt.tecnico.pic.dto.AccountStatusFilter;
+import pt.tecnico.pic.dto.AccountSummary;
 import pt.tecnico.pic.dto.PasswordResult;
 import pt.tecnico.pic.store.AccountStore;
 
@@ -129,7 +133,15 @@ public class AccountService {
                 return new AccountResult(OperationResult.FAILED, "Account not found.");
             }
 
-            account.setRoles(validateRoles(roles));
+            Set<Role> safeRoles = validateRoles(roles);
+            if (wouldRemoveLastActiveAdmin(account, safeRoles)) {
+                return new AccountResult(
+                        OperationResult.FAILED,
+                        "The last active ADMIN cannot lose the ADMIN role."
+                );
+            }
+
+            account.setRoles(safeRoles);
             accountStore.save(account);
 
             return new AccountResult(OperationResult.SUCCESS, "Roles updated successfully.");
@@ -214,6 +226,13 @@ public class AccountService {
                 return new AccountResult(OperationResult.FAILED, "Account not found.");
             }
 
+            if (isLastActiveAdmin(account)) {
+                return new AccountResult(
+                        OperationResult.FAILED,
+                        "The last active ADMIN cannot be disabled."
+                );
+            }
+
             account.deactivate();
             accountStore.save(account);
 
@@ -241,6 +260,18 @@ public class AccountService {
         }
     }
 
+    public List<AccountSummary> searchAccounts(AccountFilter filter){
+        List<Account> accounts = accountStore.findAll();
+
+        return accounts.stream()
+            .filter(a -> matchesUsername(a, filter.getUsername()))
+            .filter(a -> matchesStatus(a, filter.getStatus()))
+            .filter(a -> matchesRoles(a, filter.getRoles()))
+            .sorted(Comparator.comparing(Account::getUsername))
+            .map(this::toSummary)
+            .toList();
+    }
+
     private static String normalizeUsername(String username) {
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username must not be empty.");
@@ -266,4 +297,48 @@ public class AccountService {
             throw new IllegalArgumentException("Password must not be empty.");
         }
     }
+
+    private boolean matchesUsername(Account a, String username) {
+        if (username == null || username.isBlank()) return true;
+        return a.getUsername().contains(username.toLowerCase());
+    }
+
+    private boolean matchesStatus(Account a, AccountStatusFilter f) {
+        if (f == null) return true;
+
+        if (f == AccountStatusFilter.NONE) return false;
+
+        if (f == AccountStatusFilter.ALL) return true;
+
+        return f == AccountStatusFilter.ACTIVE ? a.isActive() : !a.isActive();
+    }
+
+    private boolean matchesRoles(Account a, Set<Role> roles) {
+        if (roles == null || roles.isEmpty()) return true;
+        return a.getRoles().stream().anyMatch(roles::contains);
+    }
+
+    private AccountSummary toSummary(Account a) {
+        return new AccountSummary(a.getId(), a.getUsername(), a.getRoles(), a.isActive(), a.mustChangePassword());
+    }
+
+    private boolean wouldRemoveLastActiveAdmin(Account account, Set<Role> newRoles) {
+        return account.isActive()
+                && account.getRoles().contains(Role.ADMIN)
+                && !newRoles.contains(Role.ADMIN)
+                && activeAdminCount() == 1;
+    }
+
+    private boolean isLastActiveAdmin(Account account) {
+        return account.isActive()
+                && account.getRoles().contains(Role.ADMIN)
+                && activeAdminCount() == 1;
+    }
+
+    private long activeAdminCount() {
+        return accountStore.findActive().stream()
+                .filter(account -> account.getRoles().contains(Role.ADMIN))
+                .count();
+    }
+
 }

@@ -11,6 +11,7 @@ import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.domain.Session;
 import pt.tecnico.pic.domain.UserContext;
 import pt.tecnico.pic.dto.AccountCreationResult;
+import pt.tecnico.pic.dto.AccountFilter;
 import pt.tecnico.pic.dto.AccountResult;
 import pt.tecnico.pic.dto.AccountSummary;
 import pt.tecnico.pic.dto.CreateAccountRequest;
@@ -245,43 +246,10 @@ public class AppController {
         );
     }
 
-    public CryptoResult encryptFile(String inputPath, String outputPath) {
-        if (!canUseCrypto()) {
-            return new CryptoResult(
-                    OperationResult.FAILED,
-                    cryptoAccessFailureMessage(),
-                    inputPath,
-                    outputPath,
-                    ActionType.ENCRYPT_FILE
-            );
-        }
+    public List<AccountSummary> getUsers(AccountFilter filter) {
+        if (!canManageAccounts()) return List.of();
 
-        return fileCryptoService.encryptFile(inputPath, outputPath, currentUserContext());
-    }
-
-    public CryptoResult decryptFile(String inputPath, String outputPath) {
-        if (!canUseCrypto()) {
-            return new CryptoResult(
-                    OperationResult.FAILED,
-                    cryptoAccessFailureMessage(),
-                    inputPath,
-                    outputPath,
-                    ActionType.DECRYPT_FILE
-            );
-        }
-
-        return fileCryptoService.decryptFile(inputPath, outputPath, currentUserContext());
-    }
-
-    public List<AccountSummary> getUsers() {
-        if (!canManageAccounts()) {
-            return List.of();
-        }
-
-        return accountService.listAccounts()
-                .stream()
-                .map(this::toAccountSummary)
-                .toList();
+        return accountService.searchAccounts(filter);
     }
 
     public AccountCreationResult createAccount(CreateAccountRequest request) {
@@ -327,6 +295,10 @@ public class AppController {
                 result.getMessage()
         );
 
+        if (result.getResult() == OperationResult.SUCCESS && isCurrentAccount(accountId)) {
+            refreshCurrentSession();
+        }
+
         return result;
     }
 
@@ -335,7 +307,16 @@ public class AppController {
             return new PasswordResult(OperationResult.FAILED, "Only ADMIN can reset passwords.", null);
         }
 
-        PasswordResult result = accountService.resetPassword(accountId);
+        PasswordResult result;
+        if (isCurrentAccount(accountId)) {
+            result = new PasswordResult(
+                    OperationResult.FAILED,
+                    "Use Change Password to update your own password.",
+                    null
+            );
+        } else {
+            result = accountService.resetPassword(accountId);
+        }
 
         auditService.log(
                 currentSession.getAccountId(),
@@ -366,6 +347,10 @@ public class AppController {
                 result.getResult(),
                 result.getMessage()
         );
+
+        if (result.getResult() == OperationResult.SUCCESS && isCurrentAccount(accountId)) {
+            clearCurrentSession();
+        }
 
         return result;
     }
@@ -418,12 +403,56 @@ public class AppController {
         return new AccountResult(passwordResult.getResult(), passwordResult.getMessage());
     }
 
+    public CryptoResult encryptFile(String inputPath, String outputPath) {
+        if (!canUseCrypto()) {
+            return new CryptoResult(
+                    OperationResult.FAILED,
+                    cryptoAccessFailureMessage(),
+                    inputPath,
+                    outputPath,
+                    ActionType.ENCRYPT_FILE
+            );
+        }
+
+        return fileCryptoService.encryptFile(inputPath, outputPath, currentUserContext());
+    }
+
+    public CryptoResult decryptFile(String inputPath, String outputPath) {
+        if (!canUseCrypto()) {
+            return new CryptoResult(
+                    OperationResult.FAILED,
+                    cryptoAccessFailureMessage(),
+                    inputPath,
+                    outputPath,
+                    ActionType.DECRYPT_FILE
+            );
+        }
+
+        return fileCryptoService.decryptFile(inputPath, outputPath, currentUserContext());
+    }
+
+    public List<AccountSummary> searchAccounts(AccountFilter filter) {
+        if (!canManageAccounts()) {
+            return List.of();
+        }
+        
+        return accountService.searchAccounts(filter);
+    }
+
     public AuditService getAuditService() {
         return auditService;
     }
 
     public FileCryptoService getFileCryptoService() {
         return fileCryptoService;
+    }
+
+    public boolean hasActiveSession() {
+        return isLoggedIn();
+    }
+
+    public Role getSelectedRole() {
+        return isLoggedIn() ? currentSession.getSelectedRole() : null;
     }
 
     private boolean isLoggedIn() {
@@ -477,14 +506,40 @@ public class AppController {
         );
     }
 
-    private AccountSummary toAccountSummary(Account account) {
-        return new AccountSummary(
-                account.getId(),
-                account.getUsername(),
-                account.getRoles(),
-                account.isActive(),
-                account.mustChangePassword()
-        );
+    private boolean isCurrentAccount(int accountId) {
+        return isLoggedIn() && currentSession.getAccountId() == accountId;
+    }
+
+    private void refreshCurrentSession() {
+        if (!isLoggedIn()) {
+            return;
+        }
+
+        Role previouslySelectedRole = currentSession.getSelectedRole();
+        Account account = accountService.getAccountById(currentSession.getAccountId());
+
+        if (account == null || !account.isActive()) {
+            clearCurrentSession();
+            return;
+        }
+
+        Session refreshedSession = new Session(account.getId(), account.getUsername(), account.getRoles());
+        if (previouslySelectedRole != null && account.getRoles().contains(previouslySelectedRole)) {
+            refreshedSession.selectRole(previouslySelectedRole);
+        } else if (fileCryptoService.isTokenUnlocked()) {
+            fileCryptoService.lockToken();
+        }
+
+        currentSession = refreshedSession;
+        currentMustChangePassword = account.mustChangePassword();
+    }
+
+    private void clearCurrentSession() {
+        if (fileCryptoService.isTokenUnlocked()) {
+            fileCryptoService.lockToken();
+        }
+        currentSession = null;
+        currentMustChangePassword = false;
     }
 
 }
