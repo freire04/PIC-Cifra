@@ -22,6 +22,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.DestroyFailedException;
@@ -264,6 +266,8 @@ class PKCS11ServiceTest {
         PKCS11Service service = new PKCS11Service();
         openFakeSession(service);
 
+        assertEquals(OperationResult.FAILED, service.decryptFile(null, "plain.txt").getResult());
+        assertEquals(OperationResult.FAILED, service.decryptFile("plain.pic", null).getResult());
         assertEquals(OperationResult.FAILED, service.decryptFile("", "plain.txt").getResult());
         assertEquals(OperationResult.FAILED, service.decryptFile("plain.pic", " ").getResult());
     }
@@ -349,9 +353,10 @@ class PKCS11ServiceTest {
         openFakeSession(service);
         Path invalidEncryptedFile = tempDir.resolve("invalid-format.pic");
         byte[] invalidBytes = "PICPKCS11".getBytes(StandardCharsets.US_ASCII);
-        invalidBytes = Arrays.copyOf(invalidBytes, invalidBytes.length + 14);
-        invalidBytes[9] = 2;
+        invalidBytes = Arrays.copyOf(invalidBytes, invalidBytes.length + 15);
+        invalidBytes[9] = 1;
         invalidBytes[10] = 12;
+        invalidBytes[11] = 0;
         Files.write(invalidEncryptedFile, invalidBytes);
 
         CryptoResult result = service.decryptFile(
@@ -369,14 +374,62 @@ class PKCS11ServiceTest {
         openSoftwareBackedSession(service);
         Path input = tempDir.resolve("plain.txt");
         Path encrypted = tempDir.resolve("plain.pic");
-        Path decrypted = tempDir.resolve("plain.out.txt");
+        Path requestedOutput = tempDir.resolve("user-selected-output.custom");
+        Path decrypted = tempDir.resolve("user-selected-output.txt");
         byte[] original = "conteudo a proteger".getBytes(StandardCharsets.UTF_8);
         Files.write(input, original);
 
         assertEquals(OperationResult.SUCCESS, service.encryptFile(input.toString(), encrypted.toString()).getResult());
-        assertEquals(OperationResult.SUCCESS, service.decryptFile(encrypted.toString(), decrypted.toString()).getResult());
+        CryptoResult decryptResult = service.decryptFile(encrypted.toString(), requestedOutput.toString());
 
+        assertEquals(OperationResult.SUCCESS, decryptResult.getResult());
+        assertEquals(decrypted.toString(), decryptResult.getOutputFilePath());
+        assertTrue(Files.exists(decrypted));
+        assertFalse(Files.exists(requestedOutput));
         assertArrayEquals(original, Files.readAllBytes(decrypted));
+    }
+
+    @Test
+    void decryptFileShouldFailWhenAuthenticatedExtensionIsTampered() throws Exception {
+        PKCS11Service service = new PKCS11Service();
+        openSoftwareBackedSession(service);
+        Path input = tempDir.resolve("plain.txt");
+        Path encrypted = tempDir.resolve("plain.enc");
+        Path output = tempDir.resolve("plain.out");
+        Files.writeString(input, "conteudo autentico");
+
+        assertEquals(OperationResult.SUCCESS, service.encryptFile(input.toString(), encrypted.toString()).getResult());
+
+        byte[] encryptedBytes = Files.readAllBytes(encrypted);
+        int extensionOffset = "PICPKCS11".length() + 3 + 12;
+        encryptedBytes[extensionOffset + 1] = 'b';
+        Files.write(encrypted, encryptedBytes);
+
+        CryptoResult result = service.decryptFile(encrypted.toString(), output.toString());
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+        assertFalse(Files.exists(tempDir.resolve("plain.bxt")));
+    }
+
+    @Test
+    void decryptFileShouldNotOverwriteAdjustedOutputPath() throws Exception {
+        PKCS11Service service = new PKCS11Service();
+        openSoftwareBackedSession(service);
+        Path input = tempDir.resolve("source.txt");
+        Path encrypted = tempDir.resolve("source.enc");
+        Path requestedOutput = tempDir.resolve("restored.bin");
+        Path adjustedOutput = tempDir.resolve("restored.txt");
+        Files.writeString(input, "conteudo cifrado");
+        Files.writeString(adjustedOutput, "ficheiro existente");
+
+        assertEquals(OperationResult.SUCCESS, service.encryptFile(input.toString(), encrypted.toString()).getResult());
+
+        CryptoResult result = service.decryptFile(encrypted.toString(), requestedOutput.toString());
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+        assertEquals("Output file already exists.", result.getMessage());
+        assertEquals("ficheiro existente", Files.readString(adjustedOutput));
+        assertFalse(Files.exists(requestedOutput));
     }
 
     @Test
@@ -397,6 +450,103 @@ class PKCS11ServiceTest {
                 Arrays.toString(Files.readAllBytes(firstEncrypted)),
                 Arrays.toString(Files.readAllBytes(secondEncrypted))
         );
+    }
+
+    @Test
+    void encryptingMultipleTimesShouldUseDistinctIvs() throws Exception {
+        PKCS11Service service = new PKCS11Service();
+        openSoftwareBackedSession(service);
+        Path input = tempDir.resolve("plain.txt");
+        Files.writeString(input, "conteudo repetido");
+        Set<String> ivs = new HashSet<>();
+
+        for (int i = 0; i < 32; i++) {
+            Path encrypted = tempDir.resolve("plain-" + i + ".enc");
+            assertEquals(
+                    OperationResult.SUCCESS,
+                    service.encryptFile(input.toString(), encrypted.toString()).getResult()
+            );
+
+            byte[] encryptedBytes = Files.readAllBytes(encrypted);
+            int ivLength = Byte.toUnsignedInt(encryptedBytes[10]);
+            byte[] iv = Arrays.copyOfRange(encryptedBytes, 12, 12 + ivLength);
+            assertTrue(ivs.add(Arrays.toString(iv)), "IV was reused at operation " + i);
+        }
+
+        assertEquals(32, ivs.size());
+    }
+
+    @Test
+    void encryptFileShouldNotOverwriteExistingOutput() throws Exception {
+        PKCS11Service service = new PKCS11Service();
+        openSoftwareBackedSession(service);
+        Path input = tempDir.resolve("plain.txt");
+        Path output = tempDir.resolve("plain.enc");
+        Files.writeString(input, "novo conteudo");
+        Files.writeString(output, "ficheiro existente");
+
+        CryptoResult result = service.encryptFile(input.toString(), output.toString());
+
+        assertEquals(OperationResult.FAILED, result.getResult());
+        assertEquals("Output file already exists.", result.getMessage());
+        assertEquals("ficheiro existente", Files.readString(output));
+    }
+
+    @Test
+    void encryptFileShouldSupportShortOutputFileNames() throws Exception {
+        PKCS11Service service = new PKCS11Service();
+        openSoftwareBackedSession(service);
+        Path input = tempDir.resolve("plain.txt");
+        Path output = tempDir.resolve("x");
+        Files.writeString(input, "conteudo");
+
+        CryptoResult result = service.encryptFile(input.toString(), output.toString());
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+        assertTrue(Files.exists(output));
+    }
+
+    @Test
+    void largeFileRoundTripShouldPreserveContent() throws Exception {
+        PKCS11Service service = new PKCS11Service();
+        openSoftwareBackedSession(service);
+        Path input = tempDir.resolve("large.data-1");
+        Path encrypted = tempDir.resolve("large.enc");
+        Path requestedOutput = tempDir.resolve("restored.tmp");
+        Path decrypted = tempDir.resolve("restored.data-1");
+        byte[] block = new byte[64 * 1024];
+        Arrays.fill(block, (byte) 0x5A);
+
+        try (OutputStream output = Files.newOutputStream(input)) {
+            for (int i = 0; i < 80; i++) {
+                output.write(block);
+            }
+        }
+
+        assertEquals(OperationResult.SUCCESS, service.encryptFile(input.toString(), encrypted.toString()).getResult());
+        assertEquals(
+                OperationResult.SUCCESS,
+                service.decryptFile(encrypted.toString(), requestedOutput.toString()).getResult()
+        );
+        assertEquals(-1L, Files.mismatch(input, decrypted));
+    }
+
+    @Test
+    void unicodeExtensionShouldBeAuthenticatedAndRestored() throws Exception {
+        PKCS11Service service = new PKCS11Service();
+        openSoftwareBackedSession(service);
+        Path input = tempDir.resolve("documento.ação");
+        Path encrypted = tempDir.resolve("documento.enc");
+        Path requestedOutput = tempDir.resolve("restored.bin");
+        Path decrypted = tempDir.resolve("restored.ação");
+        Files.writeString(input, "conteudo");
+
+        assertEquals(OperationResult.SUCCESS, service.encryptFile(input.toString(), encrypted.toString()).getResult());
+        CryptoResult result = service.decryptFile(encrypted.toString(), requestedOutput.toString());
+
+        assertEquals(OperationResult.SUCCESS, result.getResult());
+        assertEquals(decrypted.toString(), result.getOutputFilePath());
+        assertEquals("conteudo", Files.readString(decrypted));
     }
 
     @Test
@@ -538,10 +688,11 @@ class PKCS11ServiceTest {
         openFakeSession(service);
         Path invalidEncryptedFile = tempDir.resolve("invalid-iv.pic");
         byte[] invalidBytes = "PICPKCS11".getBytes(StandardCharsets.US_ASCII);
-        invalidBytes = Arrays.copyOf(invalidBytes, invalidBytes.length + 3);
-        invalidBytes[9] = 1;
+        invalidBytes = Arrays.copyOf(invalidBytes, invalidBytes.length + 4);
+        invalidBytes[9] = 2;
         invalidBytes[10] = 0;
-        invalidBytes[11] = 1;
+        invalidBytes[11] = 0;
+        invalidBytes[12] = 1;
         Files.write(invalidEncryptedFile, invalidBytes);
 
         CryptoResult result = service.decryptFile(
@@ -558,10 +709,11 @@ class PKCS11ServiceTest {
         PKCS11Service service = new PKCS11Service();
         openFakeSession(service);
         Path invalidEncryptedFile = tempDir.resolve("oversized-iv.pic");
-        byte[] invalidBytes = Arrays.copyOf("PICPKCS11".getBytes(StandardCharsets.US_ASCII), 12);
-        invalidBytes[9] = 1;
+        byte[] invalidBytes = Arrays.copyOf("PICPKCS11".getBytes(StandardCharsets.US_ASCII), 13);
+        invalidBytes[9] = 2;
         invalidBytes[10] = 33;
-        invalidBytes[11] = 1;
+        invalidBytes[11] = 0;
+        invalidBytes[12] = 1;
         Files.write(invalidEncryptedFile, invalidBytes);
 
         CryptoResult result = service.decryptFile(
@@ -578,9 +730,10 @@ class PKCS11ServiceTest {
         PKCS11Service service = new PKCS11Service();
         openFakeSession(service);
         Path invalidEncryptedFile = tempDir.resolve("missing-ciphertext.pic");
-        byte[] invalidBytes = Arrays.copyOf("PICPKCS11".getBytes(StandardCharsets.US_ASCII), 23);
-        invalidBytes[9] = 1;
+        byte[] invalidBytes = Arrays.copyOf("PICPKCS11".getBytes(StandardCharsets.US_ASCII), 24);
+        invalidBytes[9] = 2;
         invalidBytes[10] = 12;
+        invalidBytes[11] = 0;
         Files.write(invalidEncryptedFile, invalidBytes);
 
         CryptoResult result = service.decryptFile(

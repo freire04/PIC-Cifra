@@ -11,6 +11,7 @@ import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.domain.Session;
 import pt.tecnico.pic.domain.UserContext;
 import pt.tecnico.pic.dto.AccountCreationResult;
+import pt.tecnico.pic.dto.AccountFilter;
 import pt.tecnico.pic.dto.AccountResult;
 import pt.tecnico.pic.dto.AccountSummary;
 import pt.tecnico.pic.dto.CreateAccountRequest;
@@ -36,13 +37,7 @@ public class AppController {
 
     private Session currentSession;
     private boolean currentMustChangePassword;
-
-    /**
-     * VIEW_LOGS audit policy: register at most one VIEW_LOGS event per
-     * authenticated session / selected role. Refreshes and repeated filter
-     * changes should not spam the audit file.
-     */
-    private boolean viewLogsLoggedThisSession;
+    private boolean viewLogsLoggedForSelectedRole;
 
     public AppController() {
         this(new AccountService(), new AuditService());
@@ -66,11 +61,7 @@ public class AppController {
         Account account = accountService.authenticate(username, password);
 
         if (account == null) {
-
-            // Defensive clearing of session state on failed login attempt, not necessary in most cases
-            currentSession = null;
-            currentMustChangePassword = false;
-            resetViewLogsAuditPolicy();
+            clearSessionState();
 
             auditService.log(
                     null,
@@ -117,10 +108,12 @@ public class AppController {
     }
 
     public OperationResult logout() {
-
-        // If the user is not logged in, we can consider the logout successful
-        // isto é mais para casos de debugs do que para casos reais
         if (!isLoggedIn()) {
+            logProtectedActionDenied(
+                    ActionType.LOGOUT,
+                    null,
+                    "Logout failed: no authenticated user."
+            );
             return OperationResult.FAILED;
         }
 
@@ -130,9 +123,8 @@ public class AppController {
 
         OperationResult result = OperationResult.SUCCESS;
 
-        /*if (currentSession.isTokenUnlocked() || fileCryptoService.isTokenUnlocked()) {*/
         if (fileCryptoService.isTokenUnlocked()) {
-            result = fileCryptoService.lockToken();
+            result = fileCryptoService.lockToken(currentUserContext());
         }
 
         auditService.log(
@@ -162,6 +154,11 @@ public class AppController {
 
     public RoleSelectionResult selectRole(Role role, char[] tokenPin) {
         if (!isLoggedIn()) {
+            logProtectedActionDenied(
+                    ActionType.SELECT_ROLE,
+                    null,
+                    "Role selection failed: user is not logged in."
+            );
             return new RoleSelectionResult(
                     OperationResult.FAILED,
                     "User is not logged in.",
@@ -171,6 +168,11 @@ public class AppController {
         }
 
         if (currentMustChangePassword) {
+            logProtectedActionDenied(
+                    ActionType.SELECT_ROLE,
+                    null,
+                    "Role selection failed: password must be changed."
+            );
             return new RoleSelectionResult(
                     OperationResult.FAILED,
                     "Password must be changed before selecting a role.",
@@ -200,7 +202,7 @@ public class AppController {
         }
 
         if (role == Role.USER) {
-            OperationResult unlockResult = fileCryptoService.unlockToken(tokenPin);
+            OperationResult unlockResult = fileCryptoService.unlockToken(tokenPin, currentUserContext());
 
             if (unlockResult != OperationResult.SUCCESS) {
                 //currentSession.lockToken();
@@ -224,19 +226,14 @@ public class AppController {
             }
 
             currentSession.selectRole(role);
-            resetViewLogsAuditPolicy();
-            // currentSession.unlockToken();
-
         } else {
-            // if (currentSession.isTokenUnlocked() || fileCryptoService.isTokenUnlocked()) {
             if (fileCryptoService.isTokenUnlocked()) {
-                fileCryptoService.lockToken();
+                fileCryptoService.lockToken(currentUserContext());
             }
 
             currentSession.selectRole(role);
-            resetViewLogsAuditPolicy();
-            // currentSession.lockToken();
         }
+        resetViewLogsAuditPolicy();
 
         auditService.log(
                 currentSession.getAccountId(),
@@ -257,53 +254,22 @@ public class AppController {
         );
     }
 
-    public CryptoResult encryptFile(String inputPath, String outputPath) {
-        if (!canUseCrypto()) {
-            return new CryptoResult(
-                    OperationResult.FAILED,
-                    cryptoAccessFailureMessage(),
-                    inputPath,
-                    outputPath,
-                    ActionType.ENCRYPT_FILE
-            );
-        }
+    public List<AccountSummary> getUsers(AccountFilter filter) {
+        if (!canManageAccounts()) return List.of();
 
-        return fileCryptoService.encryptFile(inputPath, outputPath, currentUserContext());
-    }
-
-    public CryptoResult decryptFile(String inputPath, String outputPath) {
-        if (!canUseCrypto()) {
-            return new CryptoResult(
-                    OperationResult.FAILED,
-                    cryptoAccessFailureMessage(),
-                    inputPath,
-                    outputPath,
-                    ActionType.DECRYPT_FILE
-            );
-        }
-
-        return fileCryptoService.decryptFile(inputPath, outputPath, currentUserContext());
-    }
-
-    public List<AccountSummary> getUsers() {
-        if (!canManageAccounts()) {
-            return List.of();
-        }
-
-        return accountService.listAccounts()
-                .stream()
-                .map(this::toAccountSummary)
-                .toList();
+        return accountService.searchAccounts(filter);
     }
 
     public AccountCreationResult createAccount(CreateAccountRequest request) {
         if (!canManageAccounts()) {
+            String message = "Only ADMIN can create accounts.";
+            logProtectedActionDenied(ActionType.CREATE_ACCOUNT, null, message);
             return new AccountCreationResult(
                     OperationResult.FAILED,
                     -1,
                     null,
                     null,
-                    "Only ADMIN can create accounts."
+                    message
             );
         }
 
@@ -324,7 +290,9 @@ public class AppController {
 
     public AccountResult updateUserRoles(int accountId, Set<Role> roles) {
         if (!canManageAccounts()) {
-            return new AccountResult(OperationResult.FAILED, "Only ADMIN can update user roles.");
+            String message = "Only ADMIN can update user roles.";
+            logProtectedActionDenied(ActionType.UPDATE_ROLES, null, message);
+            return new AccountResult(OperationResult.FAILED, message);
         }
 
         AccountResult result = accountService.updateRoles(accountId, roles);
@@ -339,15 +307,30 @@ public class AppController {
                 result.getMessage()
         );
 
+        if (result.getResult() == OperationResult.SUCCESS && isCurrentAccount(accountId)) {
+            refreshCurrentSession();
+        }
+
         return result;
     }
 
     public PasswordResult resetPassword(int accountId) {
         if (!canManageAccounts()) {
-            return new PasswordResult(OperationResult.FAILED, "Only ADMIN can reset passwords.", null);
+            String message = "Only ADMIN can reset passwords.";
+            logProtectedActionDenied(ActionType.RESET_PASSWORD, null, message);
+            return new PasswordResult(OperationResult.FAILED, message, null);
         }
 
-        PasswordResult result = accountService.resetPassword(accountId);
+        PasswordResult result;
+        if (isCurrentAccount(accountId)) {
+            result = new PasswordResult(
+                    OperationResult.FAILED,
+                    "Use Change Password to update your own password.",
+                    null
+            );
+        } else {
+            result = accountService.resetPassword(accountId);
+        }
 
         auditService.log(
                 currentSession.getAccountId(),
@@ -364,7 +347,9 @@ public class AppController {
 
     public AccountResult disableAccount(int accountId) {
         if (!canManageAccounts()) {
-            return new AccountResult(OperationResult.FAILED, "Only ADMIN can disable accounts.");
+            String message = "Only ADMIN can disable accounts.";
+            logProtectedActionDenied(ActionType.DISABLE_ACCOUNT, null, message);
+            return new AccountResult(OperationResult.FAILED, message);
         }
 
         AccountResult result = accountService.disableAccount(accountId);
@@ -379,12 +364,18 @@ public class AppController {
                 result.getMessage()
         );
 
+        if (result.getResult() == OperationResult.SUCCESS && isCurrentAccount(accountId)) {
+            clearCurrentSession();
+        }
+
         return result;
     }
 
     public AccountResult enableAccount(int accountId) {
         if (!canManageAccounts()) {
-            return new AccountResult(OperationResult.FAILED, "Only ADMIN can enable accounts.");
+            String message = "Only ADMIN can enable accounts.";
+            logProtectedActionDenied(ActionType.ENABLE_ACCOUNT, null, message);
+            return new AccountResult(OperationResult.FAILED, message);
         }
 
         AccountResult result = accountService.enableAccount(accountId);
@@ -404,7 +395,9 @@ public class AppController {
 
     public AccountResult changeOwnPassword(char[] oldPassword, char[] newPassword) {
         if (!isLoggedIn()) {
-            return new AccountResult(OperationResult.FAILED, "User is not logged in.");
+            String message = "User is not logged in.";
+            logProtectedActionDenied(ActionType.CHANGE_PASSWORD, null, message);
+            return new AccountResult(OperationResult.FAILED, message);
         }
 
         PasswordResult passwordResult = accountService.changePassword(
@@ -430,18 +423,83 @@ public class AppController {
         return new AccountResult(passwordResult.getResult(), passwordResult.getMessage());
     }
 
-
-    private boolean shouldLogViewLogsAccess() {
-        if (viewLogsLoggedThisSession) {
-            return false;
+    public CryptoResult encryptFile(String inputPath, String outputPath) {
+        if (!canUseCrypto()) {
+            String message = cryptoAccessFailureMessage();
+            logProtectedActionDenied(ActionType.ENCRYPT_FILE, inputPath, message);
+            return new CryptoResult(
+                    OperationResult.FAILED,
+                    message,
+                    inputPath,
+                    outputPath,
+                    ActionType.ENCRYPT_FILE
+            );
         }
 
-        viewLogsLoggedThisSession = true;
-        return true;
+        return fileCryptoService.encryptFile(inputPath, outputPath, currentUserContext());
     }
 
-    private void resetViewLogsAuditPolicy() {
-        viewLogsLoggedThisSession = false;
+    public CryptoResult decryptFile(String inputPath, String outputPath) {
+        if (!canUseCrypto()) {
+            String message = cryptoAccessFailureMessage();
+            logProtectedActionDenied(ActionType.DECRYPT_FILE, inputPath, message);
+            return new CryptoResult(
+                    OperationResult.FAILED,
+                    message,
+                    inputPath,
+                    outputPath,
+                    ActionType.DECRYPT_FILE
+            );
+        }
+
+        return fileCryptoService.decryptFile(inputPath, outputPath, currentUserContext());
+    }
+
+    public List<AccountSummary> searchAccounts(AccountFilter filter) {
+        if (!canManageAccounts()) {
+            return List.of();
+        }
+
+        return accountService.searchAccounts(filter);
+    }
+
+    public OperationResult recordAuditLogsAccess() {
+        if (!canViewAuditLogs()) {
+            logProtectedActionDenied(
+                    ActionType.VIEW_LOGS,
+                    null,
+                    auditLogsAccessFailureMessage()
+            );
+            return OperationResult.FAILED;
+        }
+
+        if (viewLogsLoggedForSelectedRole) {
+            return OperationResult.SUCCESS;
+        }
+
+        auditService.log(
+                currentSession.getAccountId(),
+                currentSession.getUsername(),
+                currentSession.getSelectedRole(),
+                ActionType.VIEW_LOGS,
+                null,
+                OperationResult.SUCCESS,
+                "Audit logs viewed."
+        );
+        viewLogsLoggedForSelectedRole = true;
+        return OperationResult.SUCCESS;
+    }
+
+    private void logProtectedActionDenied(ActionType action, String filePath, String message) {
+        auditService.log(
+                currentSession == null ? null : currentSession.getAccountId(),
+                currentSession == null ? null : currentSession.getUsername(),
+                currentSession == null ? null : currentSession.getSelectedRole(),
+                action,
+                filePath,
+                OperationResult.FAILED,
+                message
+        );
     }
 
     public AuditService getAuditService() {
@@ -450,6 +508,14 @@ public class AppController {
 
     public FileCryptoService getFileCryptoService() {
         return fileCryptoService;
+    }
+
+    public boolean hasActiveSession() {
+        return isLoggedIn();
+    }
+
+    public Role getSelectedRole() {
+        return isLoggedIn() ? currentSession.getSelectedRole() : null;
     }
 
     private boolean isLoggedIn() {
@@ -464,6 +530,12 @@ public class AppController {
         return isLoggedIn()
                 && !currentMustChangePassword
                 && hasSelectedRole(Role.ADMIN);
+    }
+
+    private boolean canViewAuditLogs() {
+        return isLoggedIn()
+                && !currentMustChangePassword
+                && hasSelectedRole(Role.AUDITOR);
     }
 
     private boolean canUseCrypto() {
@@ -495,6 +567,18 @@ public class AppController {
         return "Crypto operation is not allowed.";
     }
 
+    private String auditLogsAccessFailureMessage() {
+        if (!isLoggedIn()) {
+            return "User is not logged in.";
+        }
+
+        if (currentMustChangePassword) {
+            return "Password must be changed before using the application.";
+        }
+
+        return "Only AUDITOR role can view audit logs.";
+    }
+
     private UserContext currentUserContext() {
         return new UserContext(
                 currentSession.getAccountId(),
@@ -503,14 +587,52 @@ public class AppController {
         );
     }
 
-    private AccountSummary toAccountSummary(Account account) {
-        return new AccountSummary(
-                account.getId(),
-                account.getUsername(),
-                account.getRoles(),
-                account.isActive(),
-                account.mustChangePassword()
-        );
+    private boolean isCurrentAccount(int accountId) {
+        return isLoggedIn() && currentSession.getAccountId() == accountId;
+    }
+
+    private void refreshCurrentSession() {
+        if (!isLoggedIn()) {
+            return;
+        }
+
+        Role previouslySelectedRole = currentSession.getSelectedRole();
+        Account account = accountService.getAccountById(currentSession.getAccountId());
+
+        if (account == null || !account.isActive()) {
+            clearCurrentSession();
+            return;
+        }
+
+        Session refreshedSession = new Session(account.getId(), account.getUsername(), account.getRoles());
+        if (previouslySelectedRole != null && account.getRoles().contains(previouslySelectedRole)) {
+            refreshedSession.selectRole(previouslySelectedRole);
+        } else if (fileCryptoService.isTokenUnlocked()) {
+            fileCryptoService.lockToken(currentUserContext());
+        }
+
+        currentSession = refreshedSession;
+        currentMustChangePassword = account.mustChangePassword();
+        if (refreshedSession.getSelectedRole() != previouslySelectedRole) {
+            resetViewLogsAuditPolicy();
+        }
+    }
+
+    private void clearCurrentSession() {
+        if (fileCryptoService.isTokenUnlocked()) {
+            fileCryptoService.lockToken(currentUserContext());
+        }
+        clearSessionState();
+    }
+
+    private void clearSessionState() {
+        currentSession = null;
+        currentMustChangePassword = false;
+        resetViewLogsAuditPolicy();
+    }
+
+    private void resetViewLogsAuditPolicy() {
+        viewLogsLoggedForSelectedRole = false;
     }
 
 }
