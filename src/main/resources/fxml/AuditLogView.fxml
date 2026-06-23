@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="pt.tecnico.pic.ui.controller.AuditorController">
+
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <left>
+        <VBox spacing="12"
+              prefWidth="220">
+
+            <Label text="Filters"
+                   style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+
+            <Separator/>
+
+            <Label text="Username"/>
+
+            <TextField fx:id="usernameField"
+                       promptText="Username"/>
+
+            <Label text="Role"/>
+
+            <ComboBox fx:id="roleComboBox"
+                      promptText="Any role"
+                      maxWidth="Infinity"/>
+
+            <Label text="Action Type"/>
+
+            <ComboBox fx:id="actionTypeComboBox"
+                      promptText="Any action"
+                      maxWidth="Infinity"/>
+
+            <Label text="Result"/>
+
+            <ComboBox fx:id="resultComboBox"
+                      promptText="Any result"
+                      maxWidth="Infinity"/>
+
+            <Label text="File Name"/>
+
+            <TextField fx:id="fileNameField"
+                       promptText="File name"/>
+
+            <Label text="Start Date"/>
+
+            <DatePicker fx:id="startDatePicker"
+                        maxWidth="Infinity"/>
+
+            <Label text="End Date"/>
+
+            <DatePicker fx:id="endDatePicker"
+                        maxWidth="Infinity"/>
+
+            <Separator/>
+
+            <Button text="Apply Filters"
+                    onAction="#onApplyFilters"
+                    maxWidth="Infinity"/>
+
+            <Button text="Clear Filters"
+                    onAction="#onClearFilters"
+                    maxWidth="Infinity"/>
+
+            <Region VBox.vgrow="ALWAYS"/>
+
+            <Button text="Back"
+                    onAction="#onBackClicked"
+                    maxWidth="Infinity"/>
+
+        </VBox>
+    </left>
+
+    <center>
+        <VBox spacing="12">
+
+            <HBox spacing="10"
+                  alignment="CENTER_LEFT">
+
+                <Label text="Audit Logs"
+                       style="-fx-font-size: 16px;"/>
+
+                <Label fx:id="logCountLabel"
+                       text=""/>
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+            </HBox>
+
+            <TableView fx:id="logsTable"
+                       VBox.vgrow="ALWAYS">
+
+                <columns>
+
+                    <TableColumn fx:id="logIdColumn"
+                                 text="Log ID"
+                                 prefWidth="80"/>
+
+                    <TableColumn fx:id="timestampColumn"
+                                 text="Timestamp"
+                                 prefWidth="180"/>
+
+                    <TableColumn fx:id="usernameColumn"
+                                 text="Username"
+                                 prefWidth="120"/>
+
+                    <TableColumn fx:id="actorRoleColumn"
+                                 text="Role"
+                                 prefWidth="100"/>
+
+                    <TableColumn fx:id="actionTypeColumn"
+                                 text="Action"
+                                 prefWidth="140"/>
+
+                    <TableColumn fx:id="fileNameColumn"
+                                 text="File Name"
+                                 prefWidth="180"/>
+
+                    <TableColumn fx:id="resultColumn"
+                                 text="Result"
+                                 prefWidth="100"/>
+
+                    <TableColumn fx:id="messageColumn"
+                                 text="Message"
+                                 prefWidth="400"/>
+
+                </columns>
+
+            </TableView>
+
+            <HBox alignment="CENTER"
+                  spacing="10">
+
+                <Pagination fx:id="pagination"
+                            maxPageIndicatorCount="10"/>
+
+            </HBox>
+
+            <Label fx:id="resultLabel"
+                   text=""
+                   wrapText="true"/>
+
+        </VBox>
+    </center>
+
+</BorderPane>
