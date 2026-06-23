@@ -1,5 +1,7 @@
 package pt.tecnico.pic.presentation.controller;
 
+import java.util.List;
+
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -9,6 +11,24 @@ import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.presentation.SceneManager;
 
 public class DashboardViewController {
+    enum DashboardAction {
+        ENCRYPT_FILE("Encrypt File"),
+        DECRYPT_FILE("Decrypt File"),
+        VIEW_LOGS("View Logs"),
+        MANAGE_USERS("Manage Users"),
+        CHANGE_PASSWORD("Change Password");
+
+        private final String label;
+
+        DashboardAction(String label) {
+            this.label = label;
+        }
+
+        String getLabel() {
+            return label;
+        }
+    }
+
     private final AppController appController;
     private final SceneManager sceneManager;
 
@@ -25,34 +45,47 @@ public class DashboardViewController {
 
     @FXML
     public void initialize() {
-        Role selectedRole = sceneManager.getSelectedRole();
+        Role selectedRole = appController.getSelectedRole();
 
-        titleLabel.setText(selectedRole + " Dashboard");
+        titleLabel.setText(selectedRole == null ? "Dashboard" : selectedRole + " Dashboard");
         loadAvailableActions(selectedRole);
     }
 
     public void loadAvailableActions(Role selectedRole) {
         actionsContainer.getChildren().clear();
 
-        // TODO:
-        // Dashboard actions should ideally come from the AppController/session state,
-        // not from SceneManager.selectedRole.
-        // Current implementation uses SceneManager as temporary placeholder state.
-
-        if (selectedRole == Role.USER) {
-            addActionButton("Encrypt File", this::onEncryptSelected);
-            addActionButton("Decrypt File", this::onDecryptSelected);
+        for (DashboardAction action : actionsFor(selectedRole)) {
+            addActionButton(action.getLabel(), actionHandler(action));
         }
+    }
 
-        if (selectedRole == Role.AUDITOR) {
-            // TODO: Currently empty - no actions defined for auditor role yet
-        }
+    static List<DashboardAction> actionsFor(Role selectedRole) {
+        return switch (selectedRole) {
+            case USER -> List.of(
+                    DashboardAction.ENCRYPT_FILE,
+                    DashboardAction.DECRYPT_FILE,
+                    DashboardAction.CHANGE_PASSWORD
+            );
+            case AUDITOR -> List.of(
+                    DashboardAction.VIEW_LOGS,
+                    DashboardAction.CHANGE_PASSWORD
+            );
+            case ADMIN -> List.of(
+                    DashboardAction.MANAGE_USERS,
+                    DashboardAction.CHANGE_PASSWORD
+            );
+            case null -> List.of();
+        };
+    }
 
-        if (selectedRole == Role.ADMIN) {
-            addActionButton("Manage Users", this::onAdminUsersSelected);
-        }
-
-        addActionButton("Change Password", this::onChangePasswordSelected);
+    private Runnable actionHandler(DashboardAction action) {
+        return switch (action) {
+            case ENCRYPT_FILE -> this::onEncryptSelected;
+            case DECRYPT_FILE -> this::onDecryptSelected;
+            case VIEW_LOGS -> this::onAuditLogsSelected;
+            case MANAGE_USERS -> this::onAdminUsersSelected;
+            case CHANGE_PASSWORD -> this::onChangePasswordSelected;
+        };
     }
 
     private void addActionButton(String text, Runnable action) {
@@ -67,6 +100,10 @@ public class DashboardViewController {
 
     public void onDecryptSelected() {
         sceneManager.showDecryptionView();
+    }
+
+    public void onAuditLogsSelected() {
+        sceneManager.showAuditLogs();
     }
 
     public void onAdminUsersSelected() {
