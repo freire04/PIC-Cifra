@@ -13,6 +13,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -191,6 +192,21 @@ public class AuditLogViewController {
         resultColumn.setCellValueFactory(cell ->
                 new ReadOnlyStringWrapper(formatResult(cell.getValue().getResult()))
         );
+        resultColumn.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(String result, boolean empty) {
+                super.updateItem(result, empty);
+
+                if (empty || result == null || result.isBlank()) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+
+                setText(result);
+                setStyle(resultStyle(result));
+            }
+        });
         fileNameColumn.setCellValueFactory(cell ->
                 new ReadOnlyStringWrapper(displayText(cell.getValue().getFileName()))
         );
@@ -211,6 +227,15 @@ public class AuditLogViewController {
 
     private static String formatResult(OperationResult result) {
         return result == null ? "-" : result.name();
+    }
+
+    static String resultStyle(String result) {
+        return switch (result) {
+            case "SUCCESS" -> "-fx-text-fill: #166534; -fx-font-weight: bold;";
+            case "FAILED" -> "-fx-text-fill: #991b1b; -fx-font-weight: bold;";
+            case "ERROR" -> "-fx-text-fill: #a16207; -fx-font-weight: bold;";
+            default -> "";
+        };
     }
 
     private static String displayText(String value) {

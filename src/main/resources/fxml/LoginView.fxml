@@ -1,28 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
 <VBox xmlns:fx="http://javafx.com/fxml"
-      spacing="12"
-      alignment="CENTER">
+      alignment="CENTER"
+      fillWidth="true"
+      styleClass="intermediate-root">
 
-      <Label text="Login"/>
+      <padding>
+            <Insets top="24" right="24" bottom="24" left="24"/>
+      </padding>
 
-      <TextField fx:id="usernameField"
-                 promptText="Username"
-                 maxWidth="240"/>
+      <VBox spacing="12"
+            alignment="CENTER"
+            maxWidth="360"
+            styleClass="intermediate-panel">
 
-      <PasswordField fx:id="passwordField"
-                     promptText="Password"
-                     maxWidth="240"/>
+            <Label text="Login"
+                   styleClass="intermediate-title"/>
 
-      <Label fx:id="errorLabel"
-             text=""
-             maxWidth="240"
-             wrapText="true"/>
+            <TextField fx:id="usernameField"
+                       promptText="Username"
+                       maxWidth="Infinity"/>
 
-      <Button text="Login"
-              onAction="#onLoginClicked"/>
+            <PasswordField fx:id="passwordField"
+                           promptText="Password"
+                           maxWidth="Infinity"/>
+
+            <Label fx:id="errorLabel"
+                   text=""
+                   maxWidth="Infinity"
+                   wrapText="true"
+                   styleClass="form-message"/>
+
+            <Button text="Login"
+                    maxWidth="Infinity"
+                    onAction="#onLoginClicked"/>
+
+      </VBox>
 
 </VBox>

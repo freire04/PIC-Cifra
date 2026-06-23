@@ -2,6 +2,7 @@ package pt.tecnico.pic.presentation.controller;
 
 import java.util.Arrays;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -44,6 +45,10 @@ public class ChangePasswordViewController {
         titleLabel.setText(mandatoryChange ? "Change Password Required" : "Change Password");
         errorLabel.setText("");
         backButton.setVisible(!mandatoryChange);
+        oldPasswordField.setOnAction(event -> newPasswordField.requestFocus());
+        newPasswordField.setOnAction(event -> confirmPasswordField.requestFocus());
+        confirmPasswordField.setOnAction(event -> onChangePasswordClicked());
+        Platform.runLater(oldPasswordField::requestFocus);
     }
 
     @FXML

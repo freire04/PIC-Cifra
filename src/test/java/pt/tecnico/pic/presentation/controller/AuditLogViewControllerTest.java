@@ -3,6 +3,7 @@ package pt.tecnico.pic.presentation.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -64,5 +65,12 @@ class AuditLogViewControllerTest {
                 "2026-06-23 14:05:06",
                 AuditLogViewController.formatTimestamp(LocalDate.of(2026, 6, 23).atTime(14, 5, 6))
         );
+    }
+
+    @Test
+    void resultStyleShouldColorOperationResults() {
+        assertTrue(AuditLogViewController.resultStyle("SUCCESS").contains("#166534"));
+        assertTrue(AuditLogViewController.resultStyle("FAILED").contains("#991b1b"));
+        assertTrue(AuditLogViewController.resultStyle("ERROR").contains("#a16207"));
     }
 }

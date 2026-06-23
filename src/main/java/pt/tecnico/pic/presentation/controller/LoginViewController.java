@@ -2,6 +2,7 @@ package pt.tecnico.pic.presentation.controller;
 
 import java.util.Arrays;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -30,6 +31,9 @@ public class LoginViewController {
     @FXML
     public void initialize() {
         errorLabel.setText("");
+        usernameField.setOnAction(event -> passwordField.requestFocus());
+        passwordField.setOnAction(event -> onLoginClicked());
+        Platform.runLater(usernameField::requestFocus);
     }
 
     @FXML
