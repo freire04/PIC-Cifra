@@ -9,14 +9,10 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import pt.tecnico.pic.application.AppController;
@@ -182,31 +178,17 @@ public class SceneManager {
     }
 
     public void showAuditLogs() {
-        AuditLogViewController controller = new AuditLogViewController(appController, this);
-        controller.initialize();
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AuditLogView.fxml"));
+            AuditLogViewController controller = new AuditLogViewController(appController, this);
+            loader.setController(controller);
+            Parent root = loader.load();
 
-        Label title = new Label("Audit Logs View");
+            setScene(root);
 
-        Button changeRoleButton = new Button("Change Role");
-        changeRoleButton.setOnAction(event -> showRoleSelection());
-
-        Button logoutButton = new Button("Logout");
-        logoutButton.setOnAction(event -> logout());
-
-        HBox topRightButtons = new HBox(12, changeRoleButton, logoutButton);
-        topRightButtons.setAlignment(Pos.TOP_RIGHT);
-
-        VBox centerContent = new VBox(title);
-        centerContent.setAlignment(Pos.CENTER);
-
-        BorderPane root = new BorderPane();
-
-        root.setTop(topRightButtons);
-        root.setCenter(centerContent);
-
-        BorderPane.setAlignment(topRightButtons, Pos.TOP_RIGHT);
-
-        setScene(root);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load AuditLogView.fxml", e);
+        }
     }
 
     public void showAdminUsers() {
