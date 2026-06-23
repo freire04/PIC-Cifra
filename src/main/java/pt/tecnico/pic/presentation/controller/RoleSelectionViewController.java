@@ -16,6 +16,12 @@ import pt.tecnico.pic.dto.RoleSelectionResult;
 import pt.tecnico.pic.presentation.SceneManager;
 
 public class RoleSelectionViewController {
+    private static final List<Role> ROLE_DISPLAY_ORDER = List.of(
+            Role.USER,
+            Role.AUDITOR,
+            Role.ADMIN
+    );
+
     private final AppController appController;
     private final SceneManager sceneManager;
 
@@ -46,17 +52,7 @@ public class RoleSelectionViewController {
 
         Set<Role> availableRoles = appController.getAvailableRoles();
 
-        List<Role> orderedRoles = List.of(
-                Role.USER,
-                Role.AUDITOR,
-                Role.ADMIN
-        );
-
-        for (Role role : orderedRoles) {
-            if (!availableRoles.contains(role)) {
-                continue;
-            }
-
+        for (Role role : rolesInDisplayOrder(availableRoles)) {
             Button roleButton = new Button(role.name());
             roleButton.setOnAction(event -> onRoleSelected(role));
             rolesContainer.getChildren().add(roleButton);
@@ -64,7 +60,7 @@ public class RoleSelectionViewController {
     }
 
     public void onRoleSelected(Role role) {
-        if (role == Role.USER) {
+        if (requiresTokenPin(role)) {
             Optional<char[]> pinResult = sceneManager.requestTokenPin();
             if (pinResult.isEmpty()) {
                 return;
@@ -82,6 +78,16 @@ public class RoleSelectionViewController {
 
         RoleSelectionResult result = appController.selectRole(role, null);
         handleRoleSelectionResult(result);
+    }
+
+    static List<Role> rolesInDisplayOrder(Set<Role> availableRoles) {
+        return ROLE_DISPLAY_ORDER.stream()
+                .filter(availableRoles::contains)
+                .toList();
+    }
+
+    static boolean requiresTokenPin(Role role) {
+        return role == Role.USER;
     }
 
     public void showError(String message) {
