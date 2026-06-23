@@ -17,6 +17,8 @@ import pt.tecnico.pic.dto.AccountSummary;
 import pt.tecnico.pic.dto.CreateAccountRequest;
 import pt.tecnico.pic.dto.CryptoResult;
 import pt.tecnico.pic.dto.LoginResult;
+import pt.tecnico.pic.dto.LogDTO;
+import pt.tecnico.pic.dto.LogFilter;
 import pt.tecnico.pic.dto.PasswordResult;
 import pt.tecnico.pic.dto.RoleSelectionResult;
 import pt.tecnico.pic.service.AccountService;
@@ -461,6 +463,14 @@ public class AppController {
         }
 
         return accountService.searchAccounts(filter);
+    }
+
+    public List<LogDTO> getAuditLogs(LogFilter filter) {
+        if (recordAuditLogsAccess() != OperationResult.SUCCESS) {
+            return List.of();
+        }
+
+        return auditService.getLogs(filter);
     }
 
     public OperationResult recordAuditLogsAccess() {

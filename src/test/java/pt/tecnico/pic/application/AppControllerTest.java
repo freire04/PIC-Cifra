@@ -1,6 +1,7 @@
 package pt.tecnico.pic.application;
 
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.domain.Role;
+import pt.tecnico.pic.domain.UserContext;
 import pt.tecnico.pic.dto.AccountCreationResult;
 import pt.tecnico.pic.dto.AccountFilter;
 import pt.tecnico.pic.dto.AccountResult;
@@ -25,6 +27,7 @@ import pt.tecnico.pic.dto.CreateAccountRequest;
 import pt.tecnico.pic.dto.CryptoResult;
 import pt.tecnico.pic.dto.LoginResult;
 import pt.tecnico.pic.dto.LogDTO;
+import pt.tecnico.pic.dto.LogFilter;
 import pt.tecnico.pic.dto.PasswordResult;
 import pt.tecnico.pic.dto.RoleSelectionResult;
 import pt.tecnico.pic.service.AccountService;
@@ -552,6 +555,133 @@ class AppControllerTest {
     }
 
     @Test
+    void auditorShouldRetrieveOnlyAuditLogsMatchingTheFilter() {
+        TestFixture fixture = newFixture();
+        loginAsAuditor(fixture, Set.of(Role.AUDITOR));
+        LocalDateTime startDate = LocalDateTime.now().minusSeconds(1);
+        fixture.auditService.log(
+                41,
+                "alice",
+                Role.USER,
+                ActionType.ENCRYPT_FILE,
+                "C:\\Users\\alice\\Documents\\report.pdf",
+                OperationResult.SUCCESS,
+                "File encrypted."
+        );
+        fixture.auditService.log(
+                42,
+                "bob",
+                Role.USER,
+                ActionType.DECRYPT_FILE,
+                "C:\\Users\\bob\\Documents\\notes.txt.enc",
+                OperationResult.SUCCESS,
+                "File decrypted."
+        );
+        LocalDateTime endDate = LocalDateTime.now().plusSeconds(1);
+        LogFilter filter = new LogFilter();
+        filter.setUsername("alice");
+        filter.setActorRole(Role.USER);
+        filter.setActionType(ActionType.ENCRYPT_FILE);
+        filter.setResult(OperationResult.SUCCESS);
+        filter.setFileName("report.pdf");
+        filter.setStartDate(startDate);
+        filter.setEndDate(endDate);
+
+        List<LogDTO> logs = fixture.controller.getAuditLogs(filter);
+
+        assertEquals(1, logs.size());
+        assertEquals("alice", logs.getFirst().getUsername());
+        assertEquals(ActionType.ENCRYPT_FILE, logs.getFirst().getActionType());
+        assertEquals("report.pdf", logs.getFirst().getFileName());
+        assertFalse(logs.getFirst().getFileName().contains("\\"));
+        assertFalse(logs.getFirst().getFileName().contains("/"));
+    }
+
+    @Test
+    void getAuditLogsShouldRequireAuditorAsTheSelectedRole() {
+        TestFixture fixture = newFixture();
+        loginAsAuditor(fixture, Set.of(Role.AUDITOR, Role.ADMIN));
+
+        assertEquals(OperationResult.SUCCESS, fixture.controller.selectRole(Role.ADMIN, null).getResult());
+        assertTrue(fixture.controller.getAuditLogs(new LogFilter()).isEmpty());
+
+        assertEquals(OperationResult.SUCCESS, fixture.controller.selectRole(Role.AUDITOR, null).getResult());
+        assertFalse(fixture.controller.getAuditLogs(new LogFilter()).isEmpty());
+
+        List<LogDTO> viewLogs = viewLogs(fixture);
+        assertEquals(2, viewLogs.size());
+        assertEquals(OperationResult.FAILED, viewLogs.getFirst().getResult());
+        assertEquals(Role.ADMIN, viewLogs.getFirst().getActorRole());
+        assertEquals(OperationResult.SUCCESS, viewLogs.getLast().getResult());
+        assertEquals(Role.AUDITOR, viewLogs.getLast().getActorRole());
+    }
+
+    @Test
+    void deniedGetAuditLogsAttemptsShouldReturnNoLogsAndBeAudited() {
+        TestFixture fixture = newFixture();
+
+        assertTrue(fixture.controller.getAuditLogs(null).isEmpty());
+        assertTrue(fixture.controller.getAuditLogs(null).isEmpty());
+
+        List<LogDTO> viewLogs = viewLogs(fixture);
+        assertEquals(2, viewLogs.size());
+        assertTrue(viewLogs.stream().allMatch(log -> log.getResult() == OperationResult.FAILED));
+    }
+
+    @Test
+    void userRoleShouldNotRetrieveAuditLogs() {
+        AccountService accountService = accountService(tempDir.resolve("user-role-accounts.json"));
+        AuditService auditService = new AuditService(
+                new LogStore(tempDir.resolve("user-role-logs.ndjson"))
+        );
+        FileCryptoService fileCryptoService = new TokenStubFileCryptoService(auditService);
+        TestFixture fixture = new TestFixture(
+                new AppController(accountService, auditService, fileCryptoService),
+                accountService,
+                auditService
+        );
+        AccountCreationResult user = fixture.accountService.createAccount("user", Set.of(Role.USER));
+        String temporaryPassword = new String(user.getTemporaryPassword());
+        assertEquals(
+                OperationResult.SUCCESS,
+                fixture.controller.login("user", temporaryPassword.toCharArray()).getResult()
+        );
+        assertEquals(
+                OperationResult.SUCCESS,
+                fixture.controller.changeOwnPassword(
+                        temporaryPassword.toCharArray(),
+                        "UserPassword123!".toCharArray()
+                ).getResult()
+        );
+        assertEquals(
+                OperationResult.SUCCESS,
+                fixture.controller.selectRole(Role.USER, "123456".toCharArray()).getResult()
+        );
+
+        assertTrue(fixture.controller.getAuditLogs(new LogFilter()).isEmpty());
+
+        LogDTO deniedViewLog = viewLogs(fixture).getLast();
+        assertEquals(OperationResult.FAILED, deniedViewLog.getResult());
+        assertEquals("user", deniedViewLog.getUsername());
+        assertEquals(Role.USER, deniedViewLog.getActorRole());
+    }
+
+    @Test
+    void repeatedGetAuditLogsShouldCreateOnlyOneSuccessfulViewLog() {
+        TestFixture fixture = newFixture();
+        loginAsAuditor(fixture, Set.of(Role.AUDITOR));
+
+        fixture.controller.getAuditLogs(null);
+        fixture.controller.getAuditLogs(null);
+        fixture.controller.getAuditLogs(null);
+
+        List<LogDTO> successfulViewLogs = viewLogs(fixture).stream()
+                .filter(log -> log.getResult() == OperationResult.SUCCESS)
+                .toList();
+        assertEquals(1, successfulViewLogs.size());
+    }
+
+    @Test
     void selectingAuditorAgainShouldAllowAnotherViewLog() {
         TestFixture fixture = newFixture();
         loginAsAuditor(fixture, Set.of(Role.AUDITOR, Role.ADMIN));
@@ -679,6 +809,31 @@ class AppControllerTest {
                 throw new LogStoreException("Simulated VIEW_LOGS persistence failure");
             }
             super.log(accountId, username, actorRole, action, filePath, result, message);
+        }
+    }
+
+    private static final class TokenStubFileCryptoService extends FileCryptoService {
+        private boolean tokenUnlocked;
+
+        private TokenStubFileCryptoService(AuditService auditService) {
+            super(auditService);
+        }
+
+        @Override
+        public OperationResult unlockToken(char[] pin, UserContext userContext) {
+            tokenUnlocked = true;
+            return OperationResult.SUCCESS;
+        }
+
+        @Override
+        public OperationResult lockToken(UserContext userContext) {
+            tokenUnlocked = false;
+            return OperationResult.SUCCESS;
+        }
+
+        @Override
+        public boolean isTokenUnlocked() {
+            return tokenUnlocked;
         }
     }
 
