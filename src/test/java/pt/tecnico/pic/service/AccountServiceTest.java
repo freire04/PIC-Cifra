@@ -209,6 +209,7 @@ class AccountServiceTest {
         AccountService accountService = newAccountService();
 
         AccountCreationResult created = accountService.createAccount("frank", Set.of(Role.ADMIN));
+        accountService.createAccount("backup-admin", Set.of(Role.ADMIN));
 
         AccountResult disabled = accountService.disableAccount(created.getAccountId());
         assertEquals(OperationResult.SUCCESS, disabled.getResult());
@@ -217,5 +218,43 @@ class AccountServiceTest {
         AccountResult enabled = accountService.enableAccount(created.getAccountId());
         assertEquals(OperationResult.SUCCESS, enabled.getResult());
         assertTrue(accountService.getAccountById(created.getAccountId()).isActive());
+    }
+
+    @Test
+    void lastActiveAdminShouldKeepAdminRoleAndRemainEnabled() {
+        AccountService accountService = newAccountService();
+        AccountCreationResult admin = accountService.createAccount("only-admin", Set.of(Role.ADMIN));
+
+        AccountResult removeRole = accountService.updateRoles(admin.getAccountId(), Set.of(Role.USER));
+        AccountResult disable = accountService.disableAccount(admin.getAccountId());
+
+        assertEquals(OperationResult.FAILED, removeRole.getResult());
+        assertEquals(OperationResult.FAILED, disable.getResult());
+        assertEquals(Set.of(Role.ADMIN), accountService.getAccountById(admin.getAccountId()).getRoles());
+        assertTrue(accountService.getAccountById(admin.getAccountId()).isActive());
+    }
+
+    @Test
+    void adminCanLoseRoleWhenAnotherActiveAdminExists() {
+        AccountService accountService = newAccountService();
+        AccountCreationResult first = accountService.createAccount("first-admin", Set.of(Role.ADMIN));
+        accountService.createAccount("second-admin", Set.of(Role.ADMIN));
+
+        AccountResult removeRole = accountService.updateRoles(first.getAccountId(), Set.of(Role.USER));
+
+        assertEquals(OperationResult.SUCCESS, removeRole.getResult());
+        assertEquals(Set.of(Role.USER), accountService.getAccountById(first.getAccountId()).getRoles());
+    }
+
+    @Test
+    void adminCanBeDisabledWhenAnotherActiveAdminExists() {
+        AccountService accountService = newAccountService();
+        AccountCreationResult first = accountService.createAccount("first-admin", Set.of(Role.ADMIN));
+        accountService.createAccount("second-admin", Set.of(Role.ADMIN));
+
+        AccountResult disable = accountService.disableAccount(first.getAccountId());
+
+        assertEquals(OperationResult.SUCCESS, disable.getResult());
+        assertFalse(accountService.getAccountById(first.getAccountId()).isActive());
     }
 }

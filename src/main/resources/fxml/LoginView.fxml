@@ -9,20 +9,6 @@
 
       <Label text="Login"/>
 
-      <VBox spacing="4"
-            alignment="CENTER">
-
-            <Label text="Test accounts:"
-                  style="-fx-text-fill: gray; -fx-font-size: 11px; -fx-font-weight: bold;"/>
-
-            <Label text="abc / 123 → normal login"
-                  style="-fx-text-fill: gray; -fx-font-size: 11px;"/>
-
-            <Label text="teste / 123 → must change password"
-                  style="-fx-text-fill: gray; -fx-font-size: 11px;"/>
-
-      </VBox>
-
       <TextField fx:id="usernameField"
                  promptText="Username"
                  maxWidth="240"/>

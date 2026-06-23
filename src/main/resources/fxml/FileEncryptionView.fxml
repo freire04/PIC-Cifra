@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      spacing="20"
+      alignment="CENTER">
+
+        <padding>
+        <Insets top="24" right="24" bottom="24" left="24"/>
+        </padding>
+
+        <HBox spacing="8"
+        alignment="CENTER_LEFT">
+
+        <Button text="Encrypt File"
+                disable="true"/>
+
+        <Button text="Decrypt File"
+                onAction="#onDecryptSelected"/>
+        </HBox>
+
+        <VBox fx:id="dropArea"
+        alignment="CENTER"
+        spacing="8"
+        prefWidth="560"
+        prefHeight="220"
+        minWidth="560"
+        minHeight="220"
+        maxWidth="560"
+        maxHeight="220"
+        style="-fx-border-color: #9ca3af;
+                -fx-border-style: dashed;
+                -fx-border-width: 2;
+                -fx-background-color: #f9fafb;
+                -fx-cursor: hand;">
+
+        <Label text="⇧"
+                style="-fx-font-size: 36px;"/>
+
+        <Label text="Drop a file here or click to browse to select a file"/>
+
+        <Label text="Any file type supported"/>
+        </VBox>
+
+        <Label fx:id="statusLabel"
+        text=""
+        style="-fx-text-fill: #6b7280;"/>
+
+        <HBox spacing="50"
+        alignment="CENTER">
+
+        <Label fx:id="selectedFileLabel"
+                text="Selected file: -"/>
+
+        <Label fx:id="sizeLabel"
+                text="Size: -"/>
+        </HBox>
+
+        <HBox spacing="12"
+        alignment="CENTER_RIGHT">
+
+        <Button fx:id="encryptButton"
+                text="Encrypt"
+                disable="true"
+                onAction="#onEncryptClicked"/>
+
+        <Button text="Back"
+                onAction="#onBackClicked"/>
+        </HBox>
+
+</VBox>

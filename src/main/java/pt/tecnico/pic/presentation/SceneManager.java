@@ -21,7 +21,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import pt.tecnico.pic.application.AppController;
 import pt.tecnico.pic.domain.Role;
-import pt.tecnico.pic.presentation.controller.AdminUserViewController;
+import pt.tecnico.pic.presentation.controller.AdminViewController;
 import pt.tecnico.pic.presentation.controller.AuditLogViewController;
 import pt.tecnico.pic.presentation.controller.ChangePasswordViewController;
 import pt.tecnico.pic.presentation.controller.DashboardViewController;
@@ -36,8 +36,6 @@ import pt.tecnico.pic.presentation.controller.RoleSelectionViewController;
  * These screens exist only to validate JavaFX startup and navigation.
  * Real FXML views and ViewControllers will replace this UI in later issues.
  */
-
-// TODO: call appController.logout() when session handling is implemented.
 
 public class SceneManager {
     private final Stage primaryStage;
@@ -68,9 +66,13 @@ public class SceneManager {
     }
 
     public void showChangePassword() {
+        showChangePassword(true);
+    }
+
+    public void showChangePassword(boolean mandatoryChange) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/ChangePasswordView.fxml"));
-            ChangePasswordViewController controller = new ChangePasswordViewController(appController, this);
+            ChangePasswordViewController controller = new ChangePasswordViewController(appController, this, mandatoryChange);
             loader.setController(controller);
             Parent root = loader.load();
 
@@ -111,10 +113,7 @@ public class SceneManager {
             }
         });
 
-        Label hintLabel = new Label("Hint: Use 123456 for testing");
-        hintLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
-
-        VBox content = new VBox(6, hintLabel, pinField);
+        VBox content = new VBox(6, pinField);
         content.setAlignment(Pos.CENTER);
 
         pinDialog.getDialogPane().setContent(content);
@@ -155,11 +154,31 @@ public class SceneManager {
     }
 
     public void showEncryptionView() {
-        showFileCryptoPlaceholder(true);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/FileEncryptionView.fxml"));
+            FileEncryptionViewController controller = new FileEncryptionViewController(appController, this);
+            loader.setController(controller);
+            Parent root = loader.load();
+
+            setScene(root);
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load FileEncryptionView.fxml", e);
+        }
     }
 
     public void showDecryptionView() {
-        showFileCryptoPlaceholder(false);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/FileDecryptionView.fxml"));
+            FileDecryptionViewController controller = new FileDecryptionViewController(appController, this);
+            loader.setController(controller);
+            Parent root = loader.load();
+
+            setScene(root);
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load FileDecryptionView.fxml", e);
+        }
     }
 
     public void showAuditLogs() {
@@ -190,107 +209,23 @@ public class SceneManager {
     }
 
     public void showAdminUsers() {
-        AdminUserViewController controller = new AdminUserViewController(appController, this);
-        
-        Label title = new Label("Admin Users View");
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AdminView.fxml"));
+            AdminViewController controller = new AdminViewController(appController, this);
+            loader.setController(controller);
+            Parent root = loader.load();
 
-        Button changeRoleButton = new Button("Change Role");
-        changeRoleButton.setOnAction(event -> showRoleSelection());
+            setScene(root);
 
-        Button logoutButton = new Button("Logout");
-        logoutButton.setOnAction(event -> logout());
-
-        HBox topRightButtons = new HBox(12, changeRoleButton, logoutButton);
-        topRightButtons.setAlignment(Pos.TOP_RIGHT);
-
-        VBox centerContent = new VBox(title);
-        centerContent.setAlignment(Pos.CENTER);
-
-        BorderPane root = new BorderPane();
-
-        root.setTop(topRightButtons);
-        root.setCenter(centerContent);
-
-        BorderPane.setAlignment(topRightButtons, Pos.TOP_RIGHT);
-
-        setScene(root);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load AdminView.fxml", e);
+        }
     }
     
     public void logout() {
         appController.logout();
         selectedRole = null;
         showLogin();
-    }
-
-    private void showFileCryptoPlaceholder(boolean encryptionMode) {
-
-        if (encryptionMode) {
-            FileEncryptionViewController controller = new FileEncryptionViewController(appController, this);
-        } else {
-            FileDecryptionViewController controller = new FileDecryptionViewController(appController, this);
-        }
-
-        String dropText = encryptionMode
-                ? "Drop file to encrypt here"
-                : "Drop file to decrypt here";
-
-        String actionText = encryptionMode
-                ? "Encrypt"
-                : "Decrypt";
-
-        Button encryptTab = new Button("Encrypt File");
-        encryptTab.setOnAction(event -> showEncryptionView());
-        encryptTab.setDisable(encryptionMode);
-
-        Button decryptTab = new Button("Decrypt File");
-        decryptTab.setOnAction(event -> showDecryptionView());
-        decryptTab.setDisable(!encryptionMode);
-
-        HBox tabs = new HBox(8, encryptTab, decryptTab);
-        tabs.setAlignment(Pos.CENTER_LEFT);
-
-        Label uploadIcon = new Label("⇧");
-        uploadIcon.setStyle("-fx-font-size: 36px;");
-
-        Label dropLabel = new Label(dropText + " or browse");
-        Label supportedLabel = new Label("Any file type supported");
-
-        VBox dropContent = new VBox(8, uploadIcon, dropLabel, supportedLabel);
-        dropContent.setAlignment(Pos.CENTER);
-
-        VBox dropArea = new VBox(dropContent);
-        dropArea.setAlignment(Pos.CENTER);
-        dropArea.setPrefSize(560, 220);
-        dropArea.setMinSize(560, 220);
-        dropArea.setMaxSize(560, 220);
-
-        dropArea.setStyle(
-                "-fx-border-color: #9ca3af;" +
-                "-fx-border-style: dashed;" +
-                "-fx-border-width: 2;" +
-                "-fx-background-color: #f9fafb;"
-        );
-
-        Label selectedFileLabel = new Label("Selected file: -");
-        Label sizeLabel = new Label("Size: -");
-
-        HBox fileInfo = new HBox(260, selectedFileLabel, sizeLabel);
-        fileInfo.setAlignment(Pos.CENTER);
-
-        Button actionButton = new Button(actionText);
-        actionButton.setDisable(true);
-
-        Button backButton = new Button("Back");
-        backButton.setOnAction(event -> showDashboard());
-
-        HBox bottomButtons = new HBox(12, actionButton, backButton);
-        bottomButtons.setAlignment(Pos.CENTER_RIGHT);
-
-        VBox root = new VBox(20, tabs, dropArea, fileInfo, bottomButtons);
-        root.setAlignment(Pos.CENTER);
-        root.setPadding(new javafx.geometry.Insets(24));
-
-        setScene(root);
     }
 
     private void setScene(Parent root) {

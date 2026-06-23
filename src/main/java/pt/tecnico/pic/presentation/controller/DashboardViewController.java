@@ -51,6 +51,8 @@ public class DashboardViewController {
         if (selectedRole == Role.ADMIN) {
             addActionButton("Manage Users", this::onAdminUsersSelected);
         }
+
+        addActionButton("Change Password", this::onChangePasswordSelected);
     }
 
     private void addActionButton(String text, Runnable action) {
@@ -69,6 +71,10 @@ public class DashboardViewController {
 
     public void onAdminUsersSelected() {
         sceneManager.showAdminUsers();
+    }
+
+    public void onChangePasswordSelected() {
+        sceneManager.showChangePassword(false);
     }
 
     // TEMPORARY PLACEHOLDERS FOR ROLE SELECTION
