@@ -6,3 +6,66 @@
     -fx-font-size: 20px;
     -fx-text-fill: #1f2937;
 }
+
+.file-workspace {
+    -fx-background-color: #f6f8fa;
+}
+
+.file-drop-area {
+    -fx-border-color: #9ca3af;
+    -fx-border-style: dashed;
+    -fx-border-width: 2;
+    -fx-border-radius: 6;
+    -fx-background-color: #f9fafb;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+
+.file-drop-icon {
+    -fx-font-size: 42px;
+    -fx-text-fill: #4b5563;
+}
+
+.file-drop-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1f2937;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
+
+.file-drop-hint {
+    -fx-text-fill: #6b7280;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
+
+.file-details {
+    -fx-padding: 10 12;
+    -fx-background-color: white;
+    -fx-background-radius: 6;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 6;
+}
+
+.intermediate-root {
+    -fx-background-color: #f6f8fa;
+}
+
+.intermediate-panel {
+    -fx-padding: 20;
+    -fx-background-color: white;
+    -fx-background-radius: 6;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 6;
+}
+
+.intermediate-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1f2937;
+}
+
+.form-message {
+    -fx-text-fill: #991b1b;
+}

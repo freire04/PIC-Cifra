@@ -8,7 +8,7 @@ import java.util.Set;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.FlowPane;
 import pt.tecnico.pic.application.AppController;
 import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.domain.Role;
@@ -26,7 +26,7 @@ public class RoleSelectionViewController {
     private final SceneManager sceneManager;
 
     @FXML
-    private HBox rolesContainer;
+    private FlowPane rolesContainer;
 
     @FXML
     private Label errorLabel;
@@ -54,6 +54,7 @@ public class RoleSelectionViewController {
 
         for (Role role : rolesInDisplayOrder(availableRoles)) {
             Button roleButton = new Button(role.name());
+            roleButton.setMinWidth(96);
             roleButton.setOnAction(event -> onRoleSelected(role));
             rolesContainer.getChildren().add(roleButton);
         }

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
 
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -212,9 +213,24 @@ public class SceneManager {
     }
 
     private void setScene(Parent root) {
-        Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
-        primaryStage.setScene(scene);
-        scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
+        boolean wasFullScreen = primaryStage.isFullScreen();
+        String stylesheet = getClass().getResource("/css/application.css").toExternalForm();
+        Scene scene = primaryStage.getScene();
+
+        if (scene == null) {
+            scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
+            primaryStage.setScene(scene);
+        } else {
+            scene.setRoot(root);
+        }
+
+        if (!scene.getStylesheets().contains(stylesheet)) {
+            scene.getStylesheets().add(stylesheet);
+        }
+
+        if (wasFullScreen && !primaryStage.isFullScreen()) {
+            Platform.runLater(() -> primaryStage.setFullScreen(true));
+        }
     }
 
     public Role getSelectedRole() {

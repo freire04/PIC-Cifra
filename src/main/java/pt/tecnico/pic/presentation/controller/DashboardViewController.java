@@ -90,6 +90,7 @@ public class DashboardViewController {
 
     private void addActionButton(String text, Runnable action) {
         Button button = new Button(text);
+        button.setMaxWidth(Double.MAX_VALUE);
         button.setOnAction(event -> action.run());
         actionsContainer.getChildren().add(button);
     }

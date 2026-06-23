@@ -1,74 +1,94 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.Insets?>
 
 <VBox xmlns:fx="http://javafx.com/fxml"
-      spacing="20"
-      alignment="CENTER">
+      spacing="16"
+      alignment="CENTER"
+      fillWidth="true"
+      styleClass="file-workspace">
 
         <padding>
-        <Insets top="24" right="24" bottom="24" left="24"/>
+                <Insets top="24" right="24" bottom="24" left="24"/>
         </padding>
 
         <HBox spacing="8"
-        alignment="CENTER_LEFT">
+              alignment="CENTER_LEFT"
+              maxWidth="Infinity">
 
-        <Button text="Encrypt File"
-                onAction="#onEncryptSelected"/>
+                <Button text="Encrypt File"
+                        onAction="#onEncryptSelected"/>
 
-        <Button text="Decrypt File"
-                disable="true"/>
+                <Button text="Decrypt File"
+                        disable="true"/>
         </HBox>
 
-        <VBox fx:id="dropArea"
-        alignment="CENTER"
-        spacing="8"
-        prefWidth="560"
-        prefHeight="220"
-        minWidth="560"
-        minHeight="220"
-        maxWidth="560"
-        maxHeight="220"
-        style="-fx-border-color: #9ca3af;
-                -fx-border-style: dashed;
-                -fx-border-width: 2;
-                -fx-background-color: #f9fafb;
-                -fx-cursor: hand;">
+        <VBox spacing="14"
+              alignment="CENTER"
+              maxWidth="Infinity"
+              VBox.vgrow="ALWAYS">
 
-        <Label text="⇧"
-                style="-fx-font-size: 36px;"/>
+                <VBox fx:id="dropArea"
+                      alignment="CENTER"
+                      spacing="10"
+                      minHeight="210"
+                      prefHeight="300"
+                      maxWidth="Infinity"
+                      maxHeight="Infinity"
+                      styleClass="file-drop-area"
+                      VBox.vgrow="ALWAYS">
 
-        <Label text="Drop a file here or click to browse to select a file"/>
+                        <Label text="⇧"
+                               styleClass="file-drop-icon"/>
 
-        <Label text="Only .enc file type supported"/>
+                        <Label text="Drop a file here or click to browse"
+                               wrapText="true"
+                               maxWidth="Infinity"
+                               styleClass="file-drop-title"/>
+
+                        <Label text="Only .enc file type supported"
+                               wrapText="true"
+                               maxWidth="Infinity"
+                               styleClass="file-drop-hint"/>
+                </VBox>
+
+                <HBox spacing="16"
+                      alignment="CENTER_LEFT"
+                      maxWidth="Infinity"
+                      styleClass="file-details">
+
+                        <Label fx:id="selectedFileLabel"
+                               text="Selected file: -"
+                               wrapText="true"
+                               maxWidth="Infinity"
+                               HBox.hgrow="ALWAYS"/>
+
+                        <Label fx:id="sizeLabel"
+                               text="Size: -"
+                               minWidth="90"/>
+                </HBox>
         </VBox>
 
-        <Label fx:id="statusLabel"
-        text=""
-        style="-fx-text-fill: #6b7280;"/>
-
-        <HBox spacing="50"
-        alignment="CENTER">
-
-        <Label fx:id="selectedFileLabel"
-                text="Selected file: -"/>
-
-        <Label fx:id="sizeLabel"
-                text="Size: -"/>
-        </HBox>
-
         <HBox spacing="12"
-        alignment="CENTER_RIGHT">
+              alignment="CENTER_LEFT"
+              maxWidth="Infinity">
 
-        <Button fx:id="decryptButton"
-                text="Decrypt"
-                disable="true"
-                onAction="#onDecryptClicked"/>
+                <Label fx:id="statusLabel"
+                       text=""
+                       wrapText="true"
+                       maxWidth="Infinity"
+                       style="-fx-text-fill: #6b7280;"
+                       HBox.hgrow="ALWAYS"/>
 
-        <Button text="Back"
-                onAction="#onBackClicked"/>
+                <Button fx:id="decryptButton"
+                        text="Decrypt"
+                        disable="true"
+                        onAction="#onDecryptClicked"/>
+
+                <Button text="Back"
+                        onAction="#onBackClicked"/>
         </HBox>
 
 </VBox>

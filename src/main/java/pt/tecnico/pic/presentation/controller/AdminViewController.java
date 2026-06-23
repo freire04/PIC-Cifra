@@ -205,12 +205,14 @@ public class AdminViewController {
         RoleSelector roleSelector = new RoleSelector(Set.of());
 
         Dialog<AccountFormData> dialog = new Dialog<>();
-        dialog.setTitle("Create User");
-        dialog.setHeaderText("Create a new user account");
+        dialog.setTitle("Create Account");
+        dialog.setHeaderText("Create a new account");
 
         ButtonType createButtonType = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().setAll(createButtonType, ButtonType.CANCEL);
         dialog.getDialogPane().setContent(new VBox(12, usernameField, roleSelector.root()));
+        dialog.getDialogPane().setMinWidth(300);
+        dialog.getDialogPane().setMinHeight(100);
 
         Node createButton = dialog.getDialogPane().lookupButton(createButtonType);
         createButton.setDisable(true);

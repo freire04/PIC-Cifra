@@ -4,8 +4,10 @@ import java.io.File;
 
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.input.Dragboard;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -73,7 +75,7 @@ public class FileEncryptionViewController {
 
         File outputFile = fileChooser.showSaveDialog(stage);
         if (outputFile == null) {
-            statusLabel.setText("Encryption cancelled.");
+            showNeutral("Encryption cancelled.");
             return;
         }
 
@@ -86,7 +88,7 @@ public class FileEncryptionViewController {
             return;
         }
 
-        statusLabel.setText("Encrypting...");
+        showNeutral("Encrypting...");
         encryptButton.setDisable(true);
 
         File inputFile = selectedInputFile;
@@ -131,25 +133,29 @@ public class FileEncryptionViewController {
         this.selectedInputFile = file;
         selectedFileLabel.setText("Selected file: " + file.getName());
         sizeLabel.setText("Size: " + FileUtils.formatSize(file.length()));
-        statusLabel.setText("Ready to start encrypting");
+        showNeutral("Ready to start encrypting");
         encryptButton.setDisable(false);
     }
 
     private void setupDragAndDrop() {
         dropArea.setOnDragOver(event -> {
-            if (event.getGestureSource() != dropArea && event.getDragboard().hasFiles()) {
+            Dragboard db = event.getDragboard();
+            if (event.getGestureSource() != dropArea && db.hasFiles() && db.getFiles().size() == 1) {
                 event.acceptTransferModes(javafx.scene.input.TransferMode.COPY);
             }
             event.consume();
         });
 
         dropArea.setOnDragDropped(event -> {
-            var db = event.getDragboard();
+            Dragboard db = event.getDragboard();
             boolean success = false;
 
-            if (db.hasFiles() && !db.getFiles().isEmpty()) {
+            if (db.hasFiles() && db.getFiles().size() == 1) {
                 processSelectedFile(db.getFiles().get(0));
                 success = true;
+            } else if (db.hasFiles()) {
+                showError("Select exactly one file.");
+                clearSelection();
             }
 
             event.setDropCompleted(success);
@@ -165,14 +171,38 @@ public class FileEncryptionViewController {
 
         if (result.getResult() == OperationResult.SUCCESS) {
             String finalName = new File(result.getOutputFilePath()).getName();
-            statusLabel.setText("Saved as: " + finalName);
+            showSuccess("Saved as: " + finalName);
+            showSuccessPopup("Encryption complete", "File encrypted successfully.", finalName);
         } else {
             showError(result.getMessage());
         }
     }
 
     private void showError(String message) {
-        statusLabel.setText("Error: " + message);
+        String safeMessage = message == null || message.isBlank() ? "Unknown error." : message;
+        statusLabel.setText("Error: " + safeMessage);
+        statusLabel.setStyle("-fx-text-fill: #991b1b;");
+    }
+
+    private void showSuccess(String message) {
+        statusLabel.setText(message);
+        statusLabel.setStyle("-fx-text-fill: #166534;");
+    }
+
+    private void showNeutral(String message) {
+        statusLabel.setText(message);
+        statusLabel.setStyle("-fx-text-fill: #6b7280;");
+    }
+
+    private void showSuccessPopup(String title, String header, String fileName) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText("Saved as: " + fileName);
+        if (statusLabel.getScene() != null) {
+            alert.initOwner(statusLabel.getScene().getWindow());
+        }
+        alert.showAndWait();
     }
 
     public void clearSelection() {

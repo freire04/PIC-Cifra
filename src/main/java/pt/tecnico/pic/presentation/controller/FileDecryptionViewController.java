@@ -5,6 +5,7 @@ import java.util.Locale;
 
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.input.Dragboard;
@@ -79,11 +80,11 @@ public class FileDecryptionViewController {
 
         File outputFile = fileChooser.showSaveDialog(stage);
         if (outputFile == null) {
-            statusLabel.setText("Decryption cancelled.");
+            showNeutral("Decryption cancelled.");
             return;
         }
 
-        statusLabel.setText("Decrypting...");
+        showNeutral("Decrypting...");
         decryptButton.setDisable(true);
 
         File inputFile = selectedInputFile;
@@ -132,7 +133,7 @@ public class FileDecryptionViewController {
         this.selectedInputFile = file;
         selectedFileLabel.setText("Selected file: " + file.getName());
         sizeLabel.setText("Size: " + FileUtils.formatSize(file.length()));
-        statusLabel.setText("Ready to start decrypting");
+        showNeutral("Ready to start decrypting");
         decryptButton.setDisable(false);
     }
 
@@ -179,14 +180,38 @@ public class FileDecryptionViewController {
 
         if (result.getResult() == OperationResult.SUCCESS) {
             String finalName = new File(result.getOutputFilePath()).getName();
-            statusLabel.setText("Saved as: " + finalName);
+            showSuccess("Saved as: " + finalName);
+            showSuccessPopup("Decryption complete", "File decrypted successfully.", finalName);
         } else {
             showError(result.getMessage());
         }
     }
 
     private void showError(String message) {
-        statusLabel.setText("Error: " + message);
+        String safeMessage = message == null || message.isBlank() ? "Unknown error." : message;
+        statusLabel.setText("Error: " + safeMessage);
+        statusLabel.setStyle("-fx-text-fill: #991b1b;");
+    }
+
+    private void showSuccess(String message) {
+        statusLabel.setText(message);
+        statusLabel.setStyle("-fx-text-fill: #166534;");
+    }
+
+    private void showNeutral(String message) {
+        statusLabel.setText(message);
+        statusLabel.setStyle("-fx-text-fill: #6b7280;");
+    }
+
+    private void showSuccessPopup(String title, String header, String fileName) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText("Saved as: " + fileName);
+        if (statusLabel.getScene() != null) {
+            alert.initOwner(statusLabel.getScene().getWindow());
+        }
+        alert.showAndWait();
     }
 
     private static boolean isEncryptedFile(File file) {

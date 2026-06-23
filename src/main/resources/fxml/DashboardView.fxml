@@ -1,23 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
 <VBox xmlns:fx="http://javafx.com/fxml"
-      spacing="16"
-      alignment="CENTER">
+      alignment="CENTER"
+      fillWidth="true"
+      styleClass="intermediate-root">
 
-    <Label fx:id="titleLabel"
-           text="Dashboard"/>
+    <padding>
+        <Insets top="24" right="24" bottom="24" left="24"/>
+    </padding>
 
-    <VBox fx:id="actionsContainer"
-          spacing="12"
-          alignment="CENTER"/>
+    <VBox spacing="16"
+          alignment="CENTER"
+          maxWidth="380"
+          styleClass="intermediate-panel">
 
-    <Button text="Change Role"
-            onAction="#onChangeRoleSelected"/>
+        <Label fx:id="titleLabel"
+               text="Dashboard"
+               styleClass="intermediate-title"/>
 
-    <Button text="Logout"
-            onAction="#onLogoutClicked"/>
+        <VBox fx:id="actionsContainer"
+              spacing="10"
+              alignment="CENTER"
+              maxWidth="Infinity"/>
+
+        <HBox spacing="10"
+              alignment="CENTER"
+              maxWidth="Infinity">
+
+            <Button text="Change Role"
+                    maxWidth="Infinity"
+                    HBox.hgrow="ALWAYS"
+                    onAction="#onChangeRoleSelected"/>
+
+            <Button text="Logout"
+                    maxWidth="Infinity"
+                    HBox.hgrow="ALWAYS"
+                    onAction="#onLogoutClicked"/>
+
+        </HBox>
+
+    </VBox>
 
 </VBox>
