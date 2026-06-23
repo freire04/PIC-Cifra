@@ -30,6 +30,7 @@ import pt.tecnico.pic.service.AuditService;
 import pt.tecnico.pic.service.FileCryptoService;
 import pt.tecnico.pic.service.PasswordService;
 import pt.tecnico.pic.store.AccountStore;
+import pt.tecnico.pic.store.LogStore;
 
 class AppControllerTest {
 
@@ -38,8 +39,9 @@ class AppControllerTest {
 
     private TestFixture newFixture() {
         Path accountsFile = tempDir.resolve("test-accounts.json");
+        Path logsFile = tempDir.resolve("test-logs.ndjson");
 
-        AuditService auditService = new AuditService();
+        AuditService auditService = new AuditService(new LogStore(logsFile));
         AccountStore accountStore = new AccountStore(accountsFile);
         PasswordService passwordService = new PasswordService();
         AccountService accountService = new AccountService(accountStore, passwordService);

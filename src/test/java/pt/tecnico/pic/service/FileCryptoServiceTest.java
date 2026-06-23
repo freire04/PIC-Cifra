@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Path;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import pt.tecnico.pic.crypto.CryptoService;
 import pt.tecnico.pic.domain.ActionType;
@@ -14,12 +17,16 @@ import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.domain.UserContext;
 import pt.tecnico.pic.dto.CryptoResult;
 import pt.tecnico.pic.dto.LogDTO;
+import pt.tecnico.pic.store.LogStore;
 
 class FileCryptoServiceTest {
+    @TempDir
+    Path tempDir;
+
     @Test
     void constructorsShouldCreateServicesWithCryptoService() {
         FileCryptoService defaultService = new FileCryptoService();
-        AuditService auditService = new AuditService();
+        AuditService auditService = newAuditService();
         FileCryptoService serviceWithAudit = new FileCryptoService(auditService);
 
         assertNotNull(defaultService.getAuditService());
@@ -30,7 +37,7 @@ class FileCryptoServiceTest {
 
     @Test
     void encryptFileShouldDelegateAndCreateAuditLogWithSanitizedFileName() {
-        AuditService auditService = new AuditService();
+        AuditService auditService = newAuditService();
         StubCryptoService cryptoService = new StubCryptoService();
         cryptoService.sessionOpen = true;
         FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
@@ -51,7 +58,7 @@ class FileCryptoServiceTest {
 
     @Test
     void encryptFileShouldAllowNullUserContextAndCreateAuditLog() {
-        AuditService auditService = new AuditService();
+        AuditService auditService = newAuditService();
         StubCryptoService cryptoService = new StubCryptoService();
         cryptoService.sessionOpen = true;
         FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
@@ -68,7 +75,7 @@ class FileCryptoServiceTest {
 
     @Test
     void decryptFileShouldDelegateAndCreateAuditLogWithSanitizedFileName() {
-        AuditService auditService = new AuditService();
+        AuditService auditService = newAuditService();
         StubCryptoService cryptoService = new StubCryptoService();
         cryptoService.sessionOpen = true;
         FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
@@ -90,7 +97,7 @@ class FileCryptoServiceTest {
 
     @Test
     void encryptFileShouldFailWithoutUnlockedToken() {
-        AuditService auditService = new AuditService();
+        AuditService auditService = newAuditService();
         StubCryptoService cryptoService = new StubCryptoService();
         FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
         UserContext userContext = new UserContext(42, "alice", Role.USER);
@@ -107,7 +114,7 @@ class FileCryptoServiceTest {
 
     @Test
     void decryptFileShouldFailWithoutUnlockedToken() {
-        AuditService auditService = new AuditService();
+        AuditService auditService = newAuditService();
         StubCryptoService cryptoService = new StubCryptoService();
         FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
         UserContext userContext = new UserContext(42, "alice", Role.USER);
@@ -124,7 +131,7 @@ class FileCryptoServiceTest {
 
     @Test
     void encryptFileShouldLogFailureReturnedByCryptoService() {
-        AuditService auditService = new AuditService();
+        AuditService auditService = newAuditService();
         StubCryptoService cryptoService = new StubCryptoService();
         cryptoService.sessionOpen = true;
         cryptoService.encryptResult = OperationResult.FAILED;
@@ -143,7 +150,7 @@ class FileCryptoServiceTest {
 
     @Test
     void decryptFileShouldLogFailureReturnedByCryptoService() {
-        AuditService auditService = new AuditService();
+        AuditService auditService = newAuditService();
         StubCryptoService cryptoService = new StubCryptoService();
         cryptoService.sessionOpen = true;
         cryptoService.decryptResult = OperationResult.FAILED;
@@ -162,7 +169,7 @@ class FileCryptoServiceTest {
 
     @Test
     void unlockAndLockTokenShouldUseCryptoServiceSession() {
-        AuditService auditService = new AuditService();
+        AuditService auditService = newAuditService();
         StubCryptoService cryptoService = new StubCryptoService();
         FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
 
@@ -177,7 +184,7 @@ class FileCryptoServiceTest {
 
     @Test
     void unlockTokenShouldLogFailureWhenPinIsRejected() {
-        AuditService auditService = new AuditService();
+        AuditService auditService = newAuditService();
         StubCryptoService cryptoService = new StubCryptoService();
         cryptoService.openSessionResult = OperationResult.FAILED;
         FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
@@ -194,7 +201,7 @@ class FileCryptoServiceTest {
 
     @Test
     void lockTokenShouldLogFailureReturnedByCryptoService() {
-        AuditService auditService = new AuditService();
+        AuditService auditService = newAuditService();
         StubCryptoService cryptoService = new StubCryptoService();
         cryptoService.closeSessionResult = OperationResult.FAILED;
         FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
@@ -206,6 +213,10 @@ class FileCryptoServiceTest {
         assertEquals(ActionType.TOKEN_LOCK, log.getActionType());
         assertEquals(OperationResult.FAILED, log.getResult());
         assertEquals("Token lock failed.", log.getMessage());
+    }
+
+    private AuditService newAuditService() {
+        return new AuditService(new LogStore(tempDir.resolve("logs.ndjson")));
     }
 
     private static class StubCryptoService implements CryptoService {

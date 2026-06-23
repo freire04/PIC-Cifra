@@ -17,8 +17,10 @@ import pt.tecnico.pic.util.PathSanitizer;
 
 public class AuditService {
 
-    private static final Pattern SENSITIVE_VALUE_PATTERN =
-            Pattern.compile("(?i)\\b(password|pin|senha|key|secret|token)\\b\\s*[:=]\\s*\\S+");
+    private static final Pattern SENSITIVE_VALUE_PATTERN = Pattern.compile(
+            "(?i)\\b(password|pin|senha|key|chave|secret|token)\\b\\s*[:=]\\s*"
+                    + "(?:\"(?:\\\\.|[^\"])*\"|'(?:\\\\.|[^'])*'|\\S+)"
+    );
 
     private static final Pattern PATH_TOKEN_PATTERN =
             Pattern.compile("\\S*[\\\\/]\\S+");
@@ -70,25 +72,14 @@ public class AuditService {
                 .toList();
     }
 
-    public synchronized List<Log> getDomainLogs() {
-        return logStore.findAll();
-    }
-
-    public synchronized List<Log> getDomainLogs(LogFilter filter) {
-        return logStore.findByFilter(filter);
-    }
-
-    public LogStore getLogStore() {
-        return logStore;
-    }
-
     private static String sanitizeMessage(String message) {
         if (message == null || message.isBlank()) {
             return message;
         }
 
+        String firstLine = message.lines().findFirst().orElse("");
         String withoutSensitiveValues = SENSITIVE_VALUE_PATTERN
-                .matcher(message)
+                .matcher(firstLine)
                 .replaceAll("$1=[REDACTED]");
 
         Matcher matcher = PATH_TOKEN_PATTERN.matcher(withoutSensitiveValues);
