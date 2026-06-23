@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -32,6 +33,7 @@ import pt.tecnico.pic.service.FileCryptoService;
 import pt.tecnico.pic.service.PasswordService;
 import pt.tecnico.pic.store.AccountStore;
 import pt.tecnico.pic.store.LogStore;
+import pt.tecnico.pic.store.LogStoreException;
 
 class AppControllerTest {
 
@@ -43,13 +45,20 @@ class AppControllerTest {
         Path logsFile = tempDir.resolve("test-logs.ndjson");
 
         AuditService auditService = new AuditService(new LogStore(logsFile));
-        AccountStore accountStore = new AccountStore(accountsFile);
-        PasswordService passwordService = new PasswordService();
-        AccountService accountService = new AccountService(accountStore, passwordService);
+        return newFixture(accountService(accountsFile), auditService);
+    }
+
+    private TestFixture newFixture(AccountService accountService, AuditService auditService) {
         FileCryptoService fileCryptoService = new FileCryptoService(auditService);
         AppController controller = new AppController(accountService, auditService, fileCryptoService);
 
         return new TestFixture(controller, accountService, auditService);
+    }
+
+    private AccountService accountService(Path accountsFile) {
+        AccountStore accountStore = new AccountStore(accountsFile);
+        PasswordService passwordService = new PasswordService();
+        return new AccountService(accountStore, passwordService);
     }
 
     @Test
@@ -526,6 +535,83 @@ class AppControllerTest {
         assertTrue(deniedLogs.stream().allMatch(log -> log.getActorRole() == Role.AUDITOR));
     }
 
+    @Test
+    void repeatedAuditLogAccessShouldCreateOnlyOneSuccessfulViewLog() {
+        TestFixture fixture = newFixture();
+        loginAsAuditor(fixture, Set.of(Role.AUDITOR));
+
+        assertEquals(OperationResult.SUCCESS, fixture.controller.recordAuditLogsAccess());
+        assertEquals(OperationResult.SUCCESS, fixture.controller.recordAuditLogsAccess());
+        assertEquals(OperationResult.SUCCESS, fixture.controller.recordAuditLogsAccess());
+
+        List<LogDTO> viewLogs = viewLogs(fixture);
+        assertEquals(1, viewLogs.size());
+        assertEquals(OperationResult.SUCCESS, viewLogs.getFirst().getResult());
+        assertEquals("auditor", viewLogs.getFirst().getUsername());
+        assertEquals(Role.AUDITOR, viewLogs.getFirst().getActorRole());
+    }
+
+    @Test
+    void selectingAuditorAgainShouldAllowAnotherViewLog() {
+        TestFixture fixture = newFixture();
+        loginAsAuditor(fixture, Set.of(Role.AUDITOR, Role.ADMIN));
+
+        fixture.controller.recordAuditLogsAccess();
+        assertEquals(OperationResult.SUCCESS, fixture.controller.selectRole(Role.ADMIN, null).getResult());
+        assertEquals(OperationResult.SUCCESS, fixture.controller.selectRole(Role.AUDITOR, null).getResult());
+        fixture.controller.recordAuditLogsAccess();
+
+        assertEquals(2, viewLogs(fixture).stream()
+                .filter(log -> log.getResult() == OperationResult.SUCCESS)
+                .count());
+    }
+
+    @Test
+    void logoutAndNewLoginShouldAllowAnotherViewLog() {
+        TestFixture fixture = newFixture();
+        loginAsAuditor(fixture, Set.of(Role.AUDITOR));
+
+        fixture.controller.recordAuditLogsAccess();
+        fixture.controller.logout();
+        assertEquals(
+                OperationResult.SUCCESS,
+                fixture.controller.login("auditor", "AuditorPassword123!".toCharArray()).getResult()
+        );
+        assertEquals(OperationResult.SUCCESS, fixture.controller.selectRole(Role.AUDITOR, null).getResult());
+        fixture.controller.recordAuditLogsAccess();
+
+        assertEquals(2, viewLogs(fixture).stream()
+                .filter(log -> log.getResult() == OperationResult.SUCCESS)
+                .count());
+    }
+
+    @Test
+    void deniedAuditLogAccessAttemptsShouldBeLoggedIndividually() {
+        TestFixture fixture = newFixture();
+
+        assertEquals(OperationResult.FAILED, fixture.controller.recordAuditLogsAccess());
+        assertEquals(OperationResult.FAILED, fixture.controller.recordAuditLogsAccess());
+
+        List<LogDTO> viewLogs = viewLogs(fixture);
+        assertEquals(2, viewLogs.size());
+        assertTrue(viewLogs.stream().allMatch(log -> log.getResult() == OperationResult.FAILED));
+    }
+
+    @Test
+    void failedViewLogPersistenceShouldNotConsumeTheSessionAllowance() {
+        Path accountsFile = tempDir.resolve("failing-audit-accounts.json");
+        Path logsFile = tempDir.resolve("failing-audit-logs.ndjson");
+        FailOnceViewLogAuditService auditService =
+                new FailOnceViewLogAuditService(new LogStore(logsFile));
+        TestFixture fixture = newFixture(accountService(accountsFile), auditService);
+        loginAsAuditor(fixture, Set.of(Role.AUDITOR));
+
+        assertThrows(LogStoreException.class, fixture.controller::recordAuditLogsAccess);
+        assertEquals(OperationResult.SUCCESS, fixture.controller.recordAuditLogsAccess());
+
+        assertEquals(1, viewLogs(fixture).size());
+    }
+
     private void loginAsAdmin(TestFixture fixture, String password) {
         LoginResult login = fixture.controller.login("admin", password.toCharArray());
         assertEquals(OperationResult.SUCCESS, login.getResult());
@@ -540,6 +626,60 @@ class AppControllerTest {
 
         RoleSelectionResult selected = fixture.controller.selectRole(Role.ADMIN, null);
         assertEquals(OperationResult.SUCCESS, selected.getResult());
+    }
+
+    private void loginAsAuditor(TestFixture fixture, Set<Role> roles) {
+        AccountCreationResult auditor = fixture.accountService.createAccount("auditor", roles);
+        String temporaryPassword = new String(auditor.getTemporaryPassword());
+
+        assertEquals(
+                OperationResult.SUCCESS,
+                fixture.controller.login("auditor", temporaryPassword.toCharArray()).getResult()
+        );
+        assertEquals(
+                OperationResult.SUCCESS,
+                fixture.controller.changeOwnPassword(
+                        temporaryPassword.toCharArray(),
+                        "AuditorPassword123!".toCharArray()
+                ).getResult()
+        );
+        assertEquals(
+                OperationResult.SUCCESS,
+                fixture.controller.selectRole(Role.AUDITOR, null).getResult()
+        );
+    }
+
+    private List<LogDTO> viewLogs(TestFixture fixture) {
+        return fixture.auditService.getLogs().stream()
+                .filter(log -> log.getActionType() == ActionType.VIEW_LOGS)
+                .toList();
+    }
+
+    private static final class FailOnceViewLogAuditService extends AuditService {
+        private boolean failNextSuccessfulViewLog = true;
+
+        private FailOnceViewLogAuditService(LogStore logStore) {
+            super(logStore);
+        }
+
+        @Override
+        public synchronized void log(
+                Integer accountId,
+                String username,
+                Role actorRole,
+                ActionType action,
+                String filePath,
+                OperationResult result,
+                String message
+        ) {
+            if (action == ActionType.VIEW_LOGS
+                    && result == OperationResult.SUCCESS
+                    && failNextSuccessfulViewLog) {
+                failNextSuccessfulViewLog = false;
+                throw new LogStoreException("Simulated VIEW_LOGS persistence failure");
+            }
+            super.log(accountId, username, actorRole, action, filePath, result, message);
+        }
     }
 
     private record TestFixture(

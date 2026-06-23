@@ -3,6 +3,7 @@ package pt.tecnico.pic.presentation.controller;
 import java.util.List;
 
 import pt.tecnico.pic.application.AppController;
+import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.dto.LogDTO;
 import pt.tecnico.pic.dto.LogFilter;
 import pt.tecnico.pic.presentation.SceneManager;
@@ -19,7 +20,11 @@ public class AuditLogViewController {
         this.currentFilter = new LogFilter();
     }
 
-    public void initialize() {}
+    public void initialize() {
+        if (appController.recordAuditLogsAccess() != OperationResult.SUCCESS) {
+            showError("Audit logs are not available for the active role.");
+        }
+    }
 
     public void loadLogs() {}
 

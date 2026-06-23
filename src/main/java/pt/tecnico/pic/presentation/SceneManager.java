@@ -183,6 +183,7 @@ public class SceneManager {
 
     public void showAuditLogs() {
         AuditLogViewController controller = new AuditLogViewController(appController, this);
+        controller.initialize();
 
         Label title = new Label("Audit Logs View");
 
