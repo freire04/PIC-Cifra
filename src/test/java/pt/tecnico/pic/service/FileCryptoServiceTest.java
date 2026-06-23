@@ -1,17 +1,18 @@
 package pt.tecnico.pic.service;
 
+import java.nio.file.Path;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.nio.file.Path;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import pt.tecnico.pic.crypto.CryptoService;
 import pt.tecnico.pic.domain.ActionType;
+import pt.tecnico.pic.domain.Log;
 import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.domain.UserContext;
@@ -172,14 +173,37 @@ class FileCryptoServiceTest {
         AuditService auditService = newAuditService();
         StubCryptoService cryptoService = new StubCryptoService();
         FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
+        UserContext userContext = new UserContext(42, "alice", Role.USER);
 
-        assertEquals(OperationResult.SUCCESS, fileCryptoService.unlockToken("1234".toCharArray()));
+        assertEquals(OperationResult.SUCCESS, fileCryptoService.unlockToken("1234".toCharArray(), userContext));
         assertTrue(fileCryptoService.isTokenUnlocked());
 
-        assertEquals(OperationResult.SUCCESS, fileCryptoService.lockToken());
+        assertEquals(OperationResult.SUCCESS, fileCryptoService.lockToken(userContext));
         assertFalse(fileCryptoService.isTokenUnlocked());
-        assertEquals(ActionType.TOKEN_UNLOCK, auditService.getLogs().get(0).getActionType());
-        assertEquals(ActionType.TOKEN_LOCK, auditService.getLogs().get(1).getActionType());
+
+        List<LogDTO> logs = auditService.getLogs();
+        assertEquals(ActionType.TOKEN_UNLOCK, logs.get(0).getActionType());
+        assertEquals(ActionType.TOKEN_LOCK, logs.get(1).getActionType());
+        assertTrue(logs.stream().allMatch(log -> "alice".equals(log.getUsername())));
+        assertTrue(logs.stream().allMatch(log -> log.getActorRole() == Role.USER));
+    }
+
+    @Test
+    void tokenLogsShouldPersistInternalAccountId() {
+        Path logsPath = tempDir.resolve("token-context.ndjson");
+        LogStore logStore = new LogStore(logsPath);
+        AuditService auditService = new AuditService(logStore);
+        StubCryptoService cryptoService = new StubCryptoService();
+        FileCryptoService fileCryptoService = new FileCryptoService(cryptoService, auditService);
+        UserContext userContext = new UserContext(42, "alice", Role.USER);
+
+        fileCryptoService.unlockToken("1234".toCharArray(), userContext);
+        fileCryptoService.lockToken(userContext);
+
+        List<Log> logs = logStore.findAll();
+        assertEquals(List.of(42, 42), logs.stream().map(Log::getAccountId).toList());
+        assertTrue(logs.stream().allMatch(log -> "alice".equals(log.getUsername())));
+        assertTrue(logs.stream().allMatch(log -> log.getActorRole() == Role.USER));
     }
 
     @Test

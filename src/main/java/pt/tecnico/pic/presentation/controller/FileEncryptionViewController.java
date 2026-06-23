@@ -85,7 +85,7 @@ public class FileEncryptionViewController {
             showError("Output file already exists.");
             return;
         }
-        
+
         statusLabel.setText("Encrypting...");
         encryptButton.setDisable(true);
 
