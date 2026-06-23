@@ -3,21 +3,21 @@ package pt.tecnico.pic.presentation.controller;
 import java.util.Arrays;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import pt.tecnico.pic.application.AppController;
 import pt.tecnico.pic.domain.OperationResult;
 import pt.tecnico.pic.dto.AccountResult;
-import pt.tecnico.pic.presentation.PlaceholderAppController;
 import pt.tecnico.pic.presentation.SceneManager;
 
 public class ChangePasswordViewController {
     private final AppController appController;
     private final SceneManager sceneManager;
+    private final boolean mandatoryChange;
 
-    //PLACEHOLDER PARA TIRAR QUANDO HOUVER CONEXÃO ENTRE FRONTEND E BACKEND
-    private final PlaceholderAppController placeholderAppController = new PlaceholderAppController();
-
+    @FXML
+    private Label titleLabel;
     @FXML
     private PasswordField oldPasswordField;
     @FXML
@@ -26,15 +26,24 @@ public class ChangePasswordViewController {
     private PasswordField confirmPasswordField;
     @FXML
     private Label errorLabel;
+    @FXML
+    private Button backButton;
 
     public ChangePasswordViewController(AppController appController, SceneManager sceneManager) {
+        this(appController, sceneManager, true);
+    }
+
+    public ChangePasswordViewController(AppController appController, SceneManager sceneManager, boolean mandatoryChange) {
         this.appController = appController;
         this.sceneManager = sceneManager;
+        this.mandatoryChange = mandatoryChange;
     }
 
     @FXML
     public void initialize() {
+        titleLabel.setText(mandatoryChange ? "Change Password Required" : "Change Password");
         errorLabel.setText("");
+        backButton.setVisible(!mandatoryChange);
     }
 
     @FXML
@@ -50,7 +59,7 @@ public class ChangePasswordViewController {
                 return;
             }
 
-            AccountResult changePasswordResult = placeholderAppController.changeOwnPassword(oldPassword, newPassword);
+            AccountResult changePasswordResult = appController.changeOwnPassword(oldPassword, newPassword);
 
             if (changePasswordResult.getResult() != OperationResult.SUCCESS) {
                 clearFields();
@@ -59,12 +68,21 @@ public class ChangePasswordViewController {
             }
 
             clearFields();
-            sceneManager.showRoleSelection();
+            if (mandatoryChange) {
+                sceneManager.showRoleSelection();
+            } else {
+                sceneManager.showDashboard();
+            }
         } finally {
             Arrays.fill(oldPassword, '\0');
             Arrays.fill(newPassword, '\0');
             Arrays.fill(confirmPassword, '\0');
         }
+    }
+
+    @FXML
+    public void onBackClicked() {
+        sceneManager.showDashboard();
     }
 
     public void showError(String message) {

@@ -36,6 +36,7 @@ class PKCS11ServiceIntegrationTest {
 
         Path input = tempDir.resolve("original.txt");
         Path encrypted = tempDir.resolve("original.pic");
+        Path requestedOutput = tempDir.resolve("decrypted.bin");
         Path decrypted = tempDir.resolve("decrypted.txt");
         byte[] originalBytes = "ficheiro de teste PKCS11".getBytes(StandardCharsets.UTF_8);
         Files.write(input, originalBytes);
@@ -52,8 +53,9 @@ class PKCS11ServiceIntegrationTest {
                     service.encryptFile(input.toString(), encrypted.toString()).getResult());
             assertTrue(Files.exists(encrypted));
 
-            assertEquals(OperationResult.SUCCESS,
-                    service.decryptFile(encrypted.toString(), decrypted.toString()).getResult());
+            var decryptResult = service.decryptFile(encrypted.toString(), requestedOutput.toString());
+            assertEquals(OperationResult.SUCCESS, decryptResult.getResult());
+            assertEquals(decrypted.toString(), decryptResult.getOutputFilePath());
             assertArrayEquals(originalBytes, Files.readAllBytes(decrypted));
         } finally {
             Arrays.fill(pinChars, '\0');

@@ -40,3 +40,15 @@ mvn -q -Dtest=PKCS11ServiceIntegrationTest -Dpic.pkcs11.test.pin=<TOKEN_PIN> tes
 
 O teste abre sessao no token, cria a chave AES no SoftHSM2 se ainda nao existir,
 cifra um ficheiro temporario, decifra o resultado e compara com o original.
+
+
+## S2-04 - VIEW_LOGS logging policy
+
+The audit dashboard must not create a new VIEW_LOGS entry every time the user clicks refresh or changes a filter. The selected policy is:
+
+- register a successful VIEW_LOGS event at most once per authenticated session and selected AUDITOR role;
+- reset the policy after login, logout, or a successful role selection;
+- repeated refreshes and filter changes in the same audit dashboard session should reuse the existing VIEW_LOGS event instead of creating log spam.
+- failed access attempts are still logged individually.
+
+This policy keeps the audit trail useful without hiding the fact that the auditor accessed the log dashboard.

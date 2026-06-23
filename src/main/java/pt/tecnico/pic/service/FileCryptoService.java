@@ -29,12 +29,16 @@ public class FileCryptoService {
     }
 
     public OperationResult unlockToken(char[] pin) {
+        return unlockToken(pin, null);
+    }
+
+    public OperationResult unlockToken(char[] pin, UserContext userContext) {
         OperationResult result = cryptoService.openSession(pin);
 
         auditService.log(
-                null,
-                null,
-                null,
+                accountId(userContext),
+                username(userContext),
+                actorRole(userContext),
                 ActionType.TOKEN_UNLOCK,
                 null,
                 result,
@@ -45,12 +49,16 @@ public class FileCryptoService {
     }
 
     public OperationResult lockToken() {
+        return lockToken(null);
+    }
+
+    public OperationResult lockToken(UserContext userContext) {
         OperationResult result = cryptoService.closeSession();
 
         auditService.log(
-                null,
-                null,
-                null,
+                accountId(userContext),
+                username(userContext),
+                actorRole(userContext),
                 ActionType.TOKEN_LOCK,
                 null,
                 result,
@@ -105,10 +113,6 @@ public class FileCryptoService {
                                                  String outputFilePath,
                                                  ActionType action,
                                                  CryptoOperation operation) {
-        Integer accountId = userContext == null ? null : userContext.getAccountId();
-        String username = userContext == null ? null : userContext.getUsername();
-        Role actorRole = userContext == null ? null : userContext.getSelectedRole();
-
         CryptoResult cryptoResult;
         if (!cryptoService.isSessionOpen()) {
             cryptoResult = new CryptoResult(
@@ -123,9 +127,9 @@ public class FileCryptoService {
         }
 
         auditService.log(
-                accountId,
-                username,
-                actorRole,
+                accountId(userContext),
+                username(userContext),
+                actorRole(userContext),
                 action,
                 inputFilePath,
                 cryptoResult.getResult(),
@@ -133,6 +137,18 @@ public class FileCryptoService {
         );
 
         return cryptoResult;
+    }
+
+    private static Integer accountId(UserContext userContext) {
+        return userContext == null ? null : userContext.getAccountId();
+    }
+
+    private static String username(UserContext userContext) {
+        return userContext == null ? null : userContext.getUsername();
+    }
+
+    private static Role actorRole(UserContext userContext) {
+        return userContext == null ? null : userContext.getSelectedRole();
     }
 
     @FunctionalInterface
