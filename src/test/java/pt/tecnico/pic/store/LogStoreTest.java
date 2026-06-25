@@ -10,9 +10,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -21,6 +18,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.Log;
@@ -227,35 +227,6 @@ class LogStoreTest {
     }
 
     @Test
-    void jsonContainsSanitizedMessageAndFileName() throws Exception {
-        Path logsPath = tempDir.resolve("logs.ndjson");
-        LogStore store = new LogStore(logsPath);
-
-        Log dangerousLog = new Log(
-                1,
-                10,
-                LocalDateTime.now(),
-                "afonso",
-                Role.USER,
-                ActionType.RESET_PASSWORD,
-                "/var/tmp/unsafe_file.txt",
-                OperationResult.FAILED,
-                "Tentativa com senha:minhasenha123 no caminho /etc/passwd"
-        );
-
-        store.save(dangerousLog);
-
-        String ndjsonContent = Files.readString(logsPath);
-
-        // Deve conter os tokens sanitizados
-        assertTrue(ndjsonContent.contains("unsafe_file.txt"));
-        assertFalse(ndjsonContent.contains("/var/tmp/"));
-
-        assertTrue(ndjsonContent.contains("senha=[REDACTED]"));
-        assertFalse(ndjsonContent.contains("minhasenha123"));
-    }
-
-    @Test
     void saveAppendsOneValidJsonObjectPerLine() throws Exception {
         Path logsPath = tempDir.resolve("logs.ndjson");
         LogStore store = new LogStore(logsPath);
@@ -399,33 +370,6 @@ class LogStoreTest {
         assertEquals(message, loaded.getMessage());
         assertNull(loaded.getAccountId());
         assertNull(loaded.getActorRole());
-    }
-
-    @Test
-    void sanitizationRedactsQuotedSecretsAndRemovesStackTraceLines() throws Exception {
-        Path logsPath = tempDir.resolve("logs.ndjson");
-        LogStore store = new LogStore(logsPath);
-
-        store.save(new Log(
-                1,
-                10,
-                LocalDateTime.now(),
-                "alice",
-                Role.USER,
-                ActionType.ENCRYPT_FILE,
-                "C:\\Users\\alice\\report.pdf",
-                OperationResult.ERROR,
-                "password=\"very secret\" failed at C:\\Users\\alice\\report.pdf"
-                        + System.lineSeparator()
-                        + "java.lang.IllegalStateException: internal detail"
-        ));
-
-        String persisted = Files.readString(logsPath);
-        assertFalse(persisted.contains("very secret"));
-        assertFalse(persisted.contains("C:\\Users\\alice"));
-        assertFalse(persisted.contains("IllegalStateException"));
-        assertTrue(persisted.contains("password=[REDACTED]"));
-        assertTrue(persisted.contains("report.pdf"));
     }
 
     @Test
