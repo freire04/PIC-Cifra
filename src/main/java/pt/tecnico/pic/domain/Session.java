@@ -8,7 +8,6 @@ public class Session {
     private final String username;
     private final Set<Role> availableRoles;
     private Role selectedRole;
-    // private boolean tokenUnlocked;
 
     public Session(int accountId, String username, Set<Role> availableRoles) {
         this.accountId = accountId;
@@ -39,16 +38,5 @@ public class Session {
 
         this.selectedRole = role;
     }
-
-    /*public boolean isTokenUnlocked() {
-        return tokenUnlocked;
-    } */
-
-    /*public void unlockToken() {
-        this.tokenUnlocked = true;
-    }
-
-    public void lockToken() {
-        this.tokenUnlocked = false;
-    }*/
+    
 }

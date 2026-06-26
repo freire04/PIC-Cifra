@@ -1,11 +1,5 @@
 package pt.tecnico.pic.sprint;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -15,6 +9,10 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -28,9 +26,9 @@ import pt.tecnico.pic.dto.AccountFilter;
 import pt.tecnico.pic.dto.AccountResult;
 import pt.tecnico.pic.dto.CreateAccountRequest;
 import pt.tecnico.pic.dto.CryptoResult;
-import pt.tecnico.pic.dto.LoginResult;
 import pt.tecnico.pic.dto.LogDTO;
 import pt.tecnico.pic.dto.LogFilter;
+import pt.tecnico.pic.dto.LoginResult;
 import pt.tecnico.pic.dto.RoleSelectionResult;
 import pt.tecnico.pic.service.AccountService;
 import pt.tecnico.pic.service.AuditService;
