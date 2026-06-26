@@ -36,6 +36,8 @@ public class AuditLogViewController {
     @FXML
     private TextField usernameFilterField;
     @FXML
+    private ComboBox<Role> actorRoleFilterComboBox;
+    @FXML
     private ComboBox<ActionType> actionTypeFilterComboBox;
     @FXML
     private ComboBox<OperationResult> resultFilterComboBox;
@@ -92,6 +94,7 @@ public class AuditLogViewController {
         try {
             currentFilter = buildFilter(
                     usernameFilterField.getText(),
+                    actorRoleFilterComboBox.getValue(),
                     actionTypeFilterComboBox.getValue(),
                     resultFilterComboBox.getValue(),
                     startDatePicker.getValue(),
@@ -106,6 +109,7 @@ public class AuditLogViewController {
     @FXML
     public void onClearFilter() {
         usernameFilterField.clear();
+        actorRoleFilterComboBox.getSelectionModel().clearSelection();
         actionTypeFilterComboBox.getSelectionModel().clearSelection();
         resultFilterComboBox.getSelectionModel().clearSelection();
         startDatePicker.setValue(null);
@@ -144,7 +148,7 @@ public class AuditLogViewController {
         this.currentFilter = currentFilter;
     }
 
-    static LogFilter buildFilter(String username, ActionType actionType, OperationResult result,
+    static LogFilter buildFilter(String username, Role actorRole, ActionType actionType, OperationResult result,
                                  LocalDate startDate, LocalDate endDate) {
         if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("Start date must not be after end date.");
@@ -154,7 +158,7 @@ public class AuditLogViewController {
 
         return new LogFilter(
                 normalizedUsername,
-                null,
+                actorRole,
                 actionType,
                 result,
                 null,
@@ -168,6 +172,7 @@ public class AuditLogViewController {
     }
 
     private void configureFilterControls() {
+        actorRoleFilterComboBox.setItems(FXCollections.observableArrayList(Role.values()));
         actionTypeFilterComboBox.setItems(FXCollections.observableArrayList(ActionType.values()));
         resultFilterComboBox.setItems(FXCollections.observableArrayList(OperationResult.values()));
     }

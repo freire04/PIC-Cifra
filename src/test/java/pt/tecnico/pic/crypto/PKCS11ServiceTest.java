@@ -746,11 +746,6 @@ class PKCS11ServiceTest {
     }
 
     @Test
-    void writePlainFileShouldHandleRootPathWithoutParent() {
-        assertThrows(IOException.class, () -> invokeWritePlainFile(tempDir.getRoot(), new byte[] {1}));
-    }
-
-    @Test
     void destroyQuietlyShouldIgnoreDestroyFailures() throws Exception {
         invokeDestroyQuietly(new FailingPasswordProtection());
     }
@@ -843,20 +838,6 @@ class PKCS11ServiceTest {
 
         try {
             return method.invoke(service, keyStore, pin);
-        } catch (java.lang.reflect.InvocationTargetException ex) {
-            if (ex.getCause() instanceof Exception cause) {
-                throw cause;
-            }
-            throw ex;
-        }
-    }
-
-    private static void invokeWritePlainFile(Path output, byte[] bytes) throws Exception {
-        var method = PKCS11Service.class.getDeclaredMethod("writePlainFile", Path.class, byte[].class);
-        method.setAccessible(true);
-
-        try {
-            method.invoke(null, output, bytes);
         } catch (java.lang.reflect.InvocationTargetException ex) {
             if (ex.getCause() instanceof Exception cause) {
                 throw cause;

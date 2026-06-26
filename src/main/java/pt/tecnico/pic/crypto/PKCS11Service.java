@@ -457,14 +457,6 @@ public class PKCS11Service implements CryptoService {
         return requestedOutput.resolveSibling(baseName + extension);
     }
 
-    private static void writePlainFile(Path output, byte[] bytes) throws IOException {
-        Path parent = output.toAbsolutePath().normalize().getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
-        }
-        Files.write(output, bytes);
-    }
-
     private static void processCipherStream(
             InputStream input,
             OutputStream output,
