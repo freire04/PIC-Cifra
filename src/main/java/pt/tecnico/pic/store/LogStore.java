@@ -14,6 +14,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -31,10 +33,20 @@ import pt.tecnico.pic.util.PathSanitizer;
  * Append-only NDJSON store for audit logs.
  *
  * Each persisted line is one JSON object and contains only safe audit fields.
+ * Full file paths, passwords, PINs, keys, file contents and stack traces are not
+ * persisted by this class.
  */
 public class LogStore {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+
+    private static final Pattern SENSITIVE_VALUE_PATTERN = Pattern.compile(
+            "(?i)\\b(password|pin|senha|key|chave|secret|token)\\b\\s*[:=]\\s*"
+                    + "(?:\"(?:\\\\.|[^\"])*\"|'(?:\\\\.|[^'])*'|\\S+)"
+    );
+
+    private static final Pattern PATH_TOKEN_PATTERN =
+            Pattern.compile("\\S*[\\\\/]\\S+");
 
     private static final ConcurrentMap<Path, StoreState> STORE_STATES = new ConcurrentHashMap<>();
 
@@ -63,7 +75,7 @@ public class LogStore {
         Objects.requireNonNull(log, "log must not be null");
         validateLog(log);
 
-        Log safeLog = log;
+        Log safeLog = sanitizeLog(log);
         String line = toJson(safeLog) + System.lineSeparator();
 
         synchronized (state.lock) {
@@ -218,6 +230,45 @@ public class LogStore {
         }
 
         return filter.getEndDate() == null || !log.getTimestamp().isAfter(filter.getEndDate());
+    }
+
+    private static Log sanitizeLog(Log log) {
+        return new Log(
+                log.getLogId(),
+                log.getAccountId(),
+                log.getTimestamp(),
+                log.getUsername(),
+                log.getActorRole(),
+                log.getAction(),
+                PathSanitizer.toFileName(log.getFileName()),
+                log.getResult(),
+                sanitizeMessage(log.getMessage())
+        );
+    }
+
+    private static String sanitizeMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return message;
+        }
+
+        String firstLine = message.lines().findFirst().orElse("");
+        String withoutSensitiveValues = SENSITIVE_VALUE_PATTERN
+                .matcher(firstLine)
+                .replaceAll("$1=[REDACTED]");
+
+        Matcher matcher = PATH_TOKEN_PATTERN.matcher(withoutSensitiveValues);
+        StringBuffer safeMessage = new StringBuffer();
+
+        while (matcher.find()) {
+            String replacement = PathSanitizer.toFileName(matcher.group());
+            matcher.appendReplacement(
+                    safeMessage,
+                    Matcher.quoteReplacement(replacement == null ? "" : replacement)
+            );
+        }
+
+        matcher.appendTail(safeMessage);
+        return safeMessage.toString();
     }
 
     private static String toJson(Log log) {

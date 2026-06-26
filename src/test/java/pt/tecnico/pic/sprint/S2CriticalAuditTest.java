@@ -1,5 +1,6 @@
 package pt.tecnico.pic.sprint;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,6 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import pt.tecnico.pic.application.AppController;
 import pt.tecnico.pic.domain.ActionType;
@@ -38,8 +42,55 @@ import pt.tecnico.pic.store.LogStore;
  */
 class S2CriticalAuditTest {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     @TempDir
     Path tempDir;
+
+    @Test
+    void logStorePersistsTraceabilityFieldsAndSanitizesSensitiveData() throws Exception {
+        Path logsPath = tempDir.resolve("logs.ndjson");
+        LogStore logStore = new LogStore(logsPath);
+        LocalDateTime timestamp = LocalDateTime.of(2026, 6, 21, 10, 30);
+
+        logStore.save(new Log(
+                1,
+                42,
+                timestamp,
+                "alice",
+                Role.AUDITOR,
+                ActionType.VIEW_LOGS,
+                "C:\\Users\\alice\\Documents\\audit-report.pdf",
+                OperationResult.SUCCESS,
+                "password=superSecret123 pin=123456 opened C:\\Users\\alice\\Documents\\audit-report.pdf"
+                        + System.lineSeparator()
+                        + "java.lang.IllegalStateException: internal stack trace"
+        ));
+
+        List<String> lines = Files.readAllLines(logsPath);
+        assertEquals(1, lines.size(), "NDJSON must contain one JSON object per line");
+
+        String persistedLine = lines.getFirst();
+        JsonNode json = OBJECT_MAPPER.readTree(persistedLine);
+
+        assertEquals(1, json.get("logId").asInt());
+        assertEquals(42, json.get("accountId").asInt());
+        assertEquals("alice", json.get("username").asText());
+        assertEquals("AUDITOR", json.get("actorRole").asText());
+        assertEquals("VIEW_LOGS", json.get("actionType").asText());
+        assertEquals("audit-report.pdf", json.get("fileName").asText());
+        assertEquals("SUCCESS", json.get("result").asText());
+
+        assertFalse(persistedLine.contains("superSecret123"));
+        assertFalse(persistedLine.contains("123456"));
+        assertFalse(persistedLine.contains("C:\\Users\\alice"));
+        assertFalse(persistedLine.contains("IllegalStateException"));
+
+        Log loaded = logStore.findAll().getFirst();
+        assertEquals(42, loaded.getAccountId());
+        assertEquals(Role.AUDITOR, loaded.getActorRole());
+        assertEquals("audit-report.pdf", loaded.getFileName());
+    }
 
     @Test
     void logStoreFiltersByUsernameActionResultRoleFileNameAndDateRange() {
@@ -95,6 +146,40 @@ class S2CriticalAuditTest {
         assertEquals(ActionType.VIEW_LOGS, dto.getActionType());
         assertEquals("audit.ndjson", dto.getFileName());
         assertThrows(NoSuchMethodException.class, () -> LogDTO.class.getMethod("getAccountId"));
+    }
+
+    @Test
+    void auditServicePersistsLogsAndReturnsSafeDtosAfterRestart() {
+        Path logsPath = tempDir.resolve("persistent-audit.ndjson");
+        AuditService auditService = new AuditService(new LogStore(logsPath));
+
+        auditService.log(
+                7,
+                "carla",
+                Role.USER,
+                ActionType.ENCRYPT_FILE,
+                "/home/carla/private/document.txt",
+                OperationResult.ERROR,
+                "key=raw-secret failed at /home/carla/private/document.txt"
+        );
+
+        AuditService restartedAuditService = new AuditService(new LogStore(logsPath));
+        LogFilter filter = new LogFilter();
+        filter.setUsername("carla");
+        filter.setActionType(ActionType.ENCRYPT_FILE);
+        filter.setResult(OperationResult.ERROR);
+
+        List<LogDTO> logs = restartedAuditService.getLogs(filter);
+
+        assertEquals(1, logs.size());
+        LogDTO dto = logs.getFirst();
+        assertEquals("carla", dto.getUsername());
+        assertEquals(Role.USER, dto.getActorRole());
+        assertEquals(ActionType.ENCRYPT_FILE, dto.getActionType());
+        assertEquals(OperationResult.ERROR, dto.getResult());
+        assertEquals("document.txt", dto.getFileName());
+        assertFalse(dto.getMessage().contains("raw-secret"));
+        assertFalse(dto.getMessage().contains("/home/carla/private"));
     }
 
     @Test
