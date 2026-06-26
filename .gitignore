@@ -6,10 +6,6 @@ out/
 # Coverage and test reports
 coverage/
 
-# Personal configuration files
-pkcs11.local.cfg
-
 # Data files
 data/accounts.json
-data/logs.json
 data/logs.ndjson

@@ -51,6 +51,12 @@
                        promptText="Username"
                        maxWidth="150"/>
 
+            <Label text="Role"/>
+
+            <ComboBox fx:id="actorRoleFilterComboBox"
+                      promptText="All roles"
+                      maxWidth="150"/>
+
             <Label text="Action"/>
 
             <ComboBox fx:id="actionTypeFilterComboBox"

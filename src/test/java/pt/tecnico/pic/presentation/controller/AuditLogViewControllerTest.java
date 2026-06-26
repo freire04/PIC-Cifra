@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import pt.tecnico.pic.domain.ActionType;
 import pt.tecnico.pic.domain.OperationResult;
+import pt.tecnico.pic.domain.Role;
 import pt.tecnico.pic.dto.LogFilter;
 
 class AuditLogViewControllerTest {
@@ -23,6 +24,7 @@ class AuditLogViewControllerTest {
 
         LogFilter filter = AuditLogViewController.buildFilter(
                 " alice ",
+                Role.AUDITOR,
                 ActionType.ENCRYPT_FILE,
                 OperationResult.SUCCESS,
                 startDate,
@@ -30,6 +32,7 @@ class AuditLogViewControllerTest {
         );
 
         assertEquals("alice", filter.getUsername());
+        assertEquals(Role.AUDITOR, filter.getActorRole());
         assertEquals(ActionType.ENCRYPT_FILE, filter.getActionType());
         assertEquals(OperationResult.SUCCESS, filter.getResult());
         assertEquals(startDate.atStartOfDay(), filter.getStartDate());
@@ -38,7 +41,7 @@ class AuditLogViewControllerTest {
 
     @Test
     void buildFilterShouldIgnoreBlankUsernameAndMissingFilters() {
-        LogFilter filter = AuditLogViewController.buildFilter("   ", null, null, null, null);
+        LogFilter filter = AuditLogViewController.buildFilter("   ", null, null, null, null, null);
 
         assertNull(filter.getUsername());
         assertNull(filter.getActorRole());
@@ -55,7 +58,7 @@ class AuditLogViewControllerTest {
         LocalDate endDate = LocalDate.of(2026, 6, 1);
 
         assertThrows(IllegalArgumentException.class, () ->
-                AuditLogViewController.buildFilter(null, null, null, startDate, endDate)
+                AuditLogViewController.buildFilter(null, null, null, null, startDate, endDate)
         );
     }
 
