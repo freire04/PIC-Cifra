@@ -80,11 +80,13 @@ public class PKCS11Service implements CryptoService {
             return;
         }
 
+        // The PKCS#11 config selects the native library and token slot used by SunPKCS11.
         Path absoluteConfigPath = configPath.toAbsolutePath().normalize();
         if (!Files.isRegularFile(absoluteConfigPath)) {
             throw new IllegalStateException("PKCS#11 configuration file not found.");
         }
 
+        // SunPKCS11 is the Java bridge between the Cipher/KeyStore APIs and the token provider.
         Provider baseProvider = Security.getProvider("SunPKCS11");
         if (baseProvider == null) {
             throw new IllegalStateException("SunPKCS11 provider is not available in this JDK.");
@@ -113,14 +115,17 @@ public class PKCS11Service implements CryptoService {
             return OperationResult.FAILED;
         }
 
+        // Work on a copy so the caller can clear its PIN array independently.
         char[] pinCopy = pin.clone();
         try {
             initialize();
 
+            // Loading the PKCS#11 KeyStore with the PIN opens an authenticated user session.
             KeyStore tokenStore = KeyStore.getInstance("PKCS11", provider);
             tokenStore.load(null, pinCopy);
 
             SecretKey tokenKey = loadOrCreateKey(tokenStore, pinCopy);
+            // Store the session handles; the key material remains protected by the token/provider.
             keyStore = tokenStore;
             secretKey = tokenKey;
             sessionOpen = true;
@@ -145,6 +150,7 @@ public class PKCS11Service implements CryptoService {
         }
 
         try {
+            // Logout from the provider and drop local handles so the token must be unlocked again.
             if (provider instanceof AuthProvider authProvider) {
                 authProvider.logout();
             }
@@ -183,6 +189,7 @@ public class PKCS11Service implements CryptoService {
                     ActionType.ENCRYPT_FILE);
         }
 
+        // Prevent reading from and writing to the same file during the stream operation.
         if (isSameNormalizedPath(input, output)) {
             return result(OperationResult.FAILED, "Input and output files must be different.", inputPath, outputPath,
                     ActionType.ENCRYPT_FILE);
@@ -198,28 +205,36 @@ public class PKCS11Service implements CryptoService {
                     ActionType.ENCRYPT_FILE);
         }
 
+        // Reuse a fixed-size buffer so large files are encrypted in chunks instead of loaded into memory.
         byte[] inputBuffer = new byte[FILE_BUFFER_BYTES];
         Path temporaryOutput = null;
         try {
+            // AES-GCM requires a fresh IV for each encryption with the same AES key.
             byte[] iv = new byte[GCM_IV_BYTES];
             SECURE_RANDOM.nextBytes(iv);
+
             String extension = extractFileExtension(input);
             byte[] authenticatedHeader = buildAuthenticatedHeader(iv, extension);
 
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", provider);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, new GCMParameterSpec(GCM_TAG_BITS, iv));
+            // The header is kept in plaintext, but authenticated as AAD by the GCM tag.
             cipher.updateAAD(authenticatedHeader);
 
+            // Write to a temporary file first; only publish the final output after encryption succeeds.
             temporaryOutput = createTemporaryOutput(output);
             try (InputStream inputStream = Files.newInputStream(input);
                  OutputStream outputStream = Files.newOutputStream(
                          temporaryOutput,
                          StandardOpenOption.TRUNCATE_EXISTING
                  )) {
+                // The header must come before the ciphertext so decryption can recover the IV and metadata.
                 outputStream.write(authenticatedHeader);
+                // Streams plaintext through AES-GCM; doFinal appends the final bytes and the GCM tag.
                 processCipherStream(inputStream, outputStream, cipher, inputBuffer);
             }
 
+            // Replace the requested output with the complete temporary file only after all writes succeeded.
             moveCompletedOutput(temporaryOutput, output);
             temporaryOutput = null;
 
@@ -272,7 +287,9 @@ public class PKCS11Service implements CryptoService {
         byte[] inputBuffer = new byte[FILE_BUFFER_BYTES];
         Path temporaryOutput = null;
         try (InputStream inputStream = Files.newInputStream(input)) {
+            // Reading the header also leaves inputStream positioned at the ciphertext and tag.
             EncryptedFile encryptedFile = readEncryptedFile(inputStream, Files.size(input));
+            // The saved extension lets the decrypted output recover the original file type.
             Path finalOutput = applyOriginalExtension(output, encryptedFile.extension());
 
             if (Files.isDirectory(finalOutput)) {
@@ -292,6 +309,7 @@ public class PKCS11Service implements CryptoService {
 
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", provider);
             cipher.init(Cipher.DECRYPT_MODE, secretKey, new GCMParameterSpec(GCM_TAG_BITS, encryptedFile.iv()));
+            // The exact header bytes must match the AAD used during encryption, or the tag check fails.
             cipher.updateAAD(encryptedFile.authenticatedHeader());
 
             temporaryOutput = createTemporaryOutput(finalOutput);
@@ -299,6 +317,7 @@ public class PKCS11Service implements CryptoService {
                     temporaryOutput,
                     StandardOpenOption.TRUNCATE_EXISTING
             )) {
+                // Streams ciphertext through AES-GCM; doFinal validates the tag before success is returned.
                 processCipherStream(inputStream, outputStream, cipher, inputBuffer);
             }
 
@@ -327,6 +346,7 @@ public class PKCS11Service implements CryptoService {
 
     private SecretKey loadOrCreateKey(KeyStore tokenStore, char[] pin)
             throws GeneralSecurityException {
+        // Reuse the existing AES key so files encrypted in previous sessions remain decryptable.
         if (tokenStore.containsAlias(keyAlias)) {
             Key key = tokenStore.getKey(keyAlias, pin);
             if (key instanceof SecretKey storedSecretKey) {
@@ -336,6 +356,7 @@ public class PKCS11Service implements CryptoService {
             throw new KeyStoreException("PKCS#11 key alias is not a secret key.");
         }
 
+        // If the key is missing, create one inside the selected token and store it under keyAlias.
         KeyGenerator keyGenerator = KeyGenerator.getInstance("AES", provider);
         keyGenerator.init(AES_KEY_BITS);
         SecretKey generatedKey = keyGenerator.generateKey();
@@ -352,6 +373,7 @@ public class PKCS11Service implements CryptoService {
 
     private static EncryptedFile readEncryptedFile(InputStream input, long fileSize)
             throws IOException, InvalidEncryptedFileException {
+        // The fixed header identifies this file format and tells how much metadata follows.
         int fixedHeaderLength = MAGIC.length + 3;
         byte[] fixedHeader = input.readNBytes(fixedHeaderLength);
 
@@ -359,6 +381,7 @@ public class PKCS11Service implements CryptoService {
             throw new InvalidEncryptedFileException();
         }
 
+        // MAGIC and version prevent random or unsupported files from being treated as PIC ciphertext.
         for (int i = 0; i < MAGIC.length; i++) {
             if (fixedHeader[i] != MAGIC[i]) {
                 throw new InvalidEncryptedFileException();
@@ -392,6 +415,7 @@ public class PKCS11Service implements CryptoService {
             throw new InvalidEncryptedFileException();
         }
 
+        // Rebuild the exact header bytes because AES-GCM authenticates AAD byte-for-byte.
         byte[] authenticatedHeader = new byte[authenticatedHeaderLength];
         System.arraycopy(fixedHeader, 0, authenticatedHeader, 0, fixedHeader.length);
         System.arraycopy(variableHeader, 0, authenticatedHeader, fixedHeader.length, variableHeader.length);
@@ -402,6 +426,7 @@ public class PKCS11Service implements CryptoService {
         validateExtension(extension);
         byte[] extensionBytes = extension.getBytes(StandardCharsets.UTF_8);
 
+        // Keep the header deterministic: these exact bytes are later authenticated as GCM AAD.
         ByteArrayOutputStream header = new ByteArrayOutputStream();
         header.write(MAGIC);
         header.write(FORMAT_VERSION);
@@ -465,6 +490,7 @@ public class PKCS11Service implements CryptoService {
     ) throws IOException, GeneralSecurityException {
         int bytesRead;
         while ((bytesRead = input.read(inputBuffer)) != -1) {
+            // update() processes the current chunk; encryption returns ciphertext, decryption returns plaintext.
             byte[] processedBytes = cipher.update(inputBuffer, 0, bytesRead);
             if (processedBytes != null) {
                 try {
@@ -477,6 +503,7 @@ public class PKCS11Service implements CryptoService {
             }
         }
 
+        // doFinal() finishes GCM: encryption emits the tag; decryption verifies it or throws.
         byte[] finalBytes = cipher.doFinal();
         try {
             if (finalBytes.length > 0) {
@@ -494,6 +521,7 @@ public class PKCS11Service implements CryptoService {
             throw new IOException("Output path is invalid.");
         }
 
+        // Create the temp file in the final directory so publishing it is a local filesystem move.
         Files.createDirectories(parent);
         String prefix = absoluteOutput.getFileName().toString();
         if (prefix.length() < 3) {
@@ -504,6 +532,7 @@ public class PKCS11Service implements CryptoService {
 
     private static void moveCompletedOutput(Path temporaryOutput, Path output) throws IOException {
         Path absoluteOutput = output.toAbsolutePath().normalize();
+        // Publish the complete temporary file as the requested output.
         Files.move(temporaryOutput, absoluteOutput);
     }
 
@@ -564,6 +593,7 @@ public class PKCS11Service implements CryptoService {
         Path normalizedFirstPath = firstPath.toAbsolutePath().normalize();
         Path normalizedSecondPath = secondPath.toAbsolutePath().normalize();
 
+        // Windows paths are case-insensitive, so compare normalized text ignoring case there.
         if (isWindows()) {
             return normalizedFirstPath.toString().equalsIgnoreCase(normalizedSecondPath.toString());
         }
