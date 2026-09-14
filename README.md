@@ -13,6 +13,15 @@ O sistema combina:
 - suporte a SoftHSM2 para desenvolvimento e testes;
 - registo persistente de auditoria em NDJSON.
 
+## Contributors
+
+| Contributor | Contributions |
+|---|---|
+| Afonso Freire | Persistência de dados e validação de permissões |
+| Diogo Santos | Serviço de auditoria, gestão de contas e credenciais |
+| Gabriel Amaral | Serviços de criptografia e integração com PKCS#11 |
+| Miguel Mateus | Frontend e fluxo de navegação |
+
 ## Funcionalidades
 
 - Autenticacao de utilizadores.
@@ -249,3 +258,7 @@ Confirmar que:
 - o token foi inicializado;
 - o PIN introduzido e o PIN de utilizador do token;
 - o caminho `library` em `pkcs11.cfg` esta correto.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
